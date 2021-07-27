@@ -1,4 +1,5 @@
 import SignalCoreKit
+import Sodium
 
 extension MessageReceiver {
 
@@ -203,8 +204,8 @@ extension MessageReceiver {
             let allClosedGroupPublicKeys = storage.getUserClosedGroupPublicKeys()
             for closedGroup in message.closedGroups {
                 guard !allClosedGroupPublicKeys.contains(closedGroup.publicKey) else { continue }
-                handleNewClosedGroup(groupPublicKey: closedGroup.publicKey, name: closedGroup.name, encryptionKeyPair: closedGroup.encryptionKeyPair,
-                    members: [String](closedGroup.members), admins: [String](closedGroup.admins), expirationTimer: closedGroup.expirationTimer,
+                handleNewClosedGroup(groupPublicKey: closedGroup.publicKey, name: closedGroup.name, x25519KeyPair: closedGroup.x25519KeyPair,
+                    members: [String](closedGroup.members), admins: [String](closedGroup.admins), expirationTimer: closedGroup.expirationTimer, ed25519KeyPair: nil,
                     messageSentTimestamp: message.sentTimestamp!, using: transaction)
             }
             // Open groups
@@ -356,15 +357,15 @@ extension MessageReceiver {
     }
     
     private static func handleNewClosedGroup(_ message: ClosedGroupControlMessage, using transaction: Any) {
-        guard case let .new(publicKeyAsData, name, encryptionKeyPair, membersAsData, adminsAsData, expirationTimer) = message.kind else { return }
+        guard case let .new(publicKeyAsData, name, x25519KeyPair, membersAsData, adminsAsData, expirationTimer, ed25519KeyPair) = message.kind else { return }
         let groupPublicKey = publicKeyAsData.toHexString()
         let members = membersAsData.map { $0.toHexString() }
         let admins = adminsAsData.map { $0.toHexString() }
-        handleNewClosedGroup(groupPublicKey: groupPublicKey, name: name, encryptionKeyPair: encryptionKeyPair,
-            members: members, admins: admins, expirationTimer: expirationTimer, messageSentTimestamp: message.sentTimestamp!, using: transaction)
+        handleNewClosedGroup(groupPublicKey: groupPublicKey, name: name, x25519KeyPair: x25519KeyPair,
+            members: members, admins: admins, expirationTimer: expirationTimer, ed25519KeyPair: ed25519KeyPair, messageSentTimestamp: message.sentTimestamp!, using: transaction)
     }
 
-    private static func handleNewClosedGroup(groupPublicKey: String, name: String, encryptionKeyPair: ECKeyPair, members: [String], admins: [String], expirationTimer: UInt32, messageSentTimestamp: UInt64, using transaction: Any) {
+    private static func handleNewClosedGroup(groupPublicKey: String, name: String, x25519KeyPair: ECKeyPair, members: [String], admins: [String], expirationTimer: UInt32, ed25519KeyPair: Sign.KeyPair?, messageSentTimestamp: UInt64, using transaction: Any) {
         let transaction = transaction as! YapDatabaseReadWriteTransaction
         // Create the group
         let groupID = LKGroupUtilities.getEncodedClosedGroupIDAsData(groupPublicKey)
@@ -392,8 +393,11 @@ extension MessageReceiver {
         configuration.save(with: transaction)
         // Add the group to the user's set of public keys to poll for
         Storage.shared.addClosedGroupPublicKey(groupPublicKey, using: transaction)
-        // Store the key pair
-        Storage.shared.addClosedGroupEncryptionKeyPair(encryptionKeyPair, for: groupPublicKey, using: transaction)
+        // Store the encryption and authentication key pairs
+        let timestamp = Storage.shared.addClosedGroupEncryptionKeyPair(x25519KeyPair, for: groupPublicKey, using: transaction)
+        if let ed25519KeyPair = ed25519KeyPair {
+            Storage.shared.addClosedGroupAuthenticationKeyPair(ed25519KeyPair, for: groupPublicKey, timestamp: timestamp, using: transaction)
+        }
         // Store the formation timestamp
         Storage.shared.setClosedGroupFormationTimestamp(to: messageSentTimestamp, for: groupPublicKey, using: transaction)
         // Start polling
@@ -422,33 +426,62 @@ extension MessageReceiver {
             return SNLog("Ignoring closed group encryption key pair from non-admin.")
         }
         // Find our wrapper and decrypt it if possible
-        guard let wrapper = wrappers.first(where: { $0.publicKey == userPublicKey }), let encryptedKeyPair = wrapper.encryptedKeyPair else { return }
+        guard let wrapper = wrappers.first(where: { $0.publicKey == userPublicKey }), let encryptedX25519KeyPair = wrapper.encryptedX25519KeyPair else { return }
+        // Handle the X25519 key pair
+        let timestamp = handleEncryptedX25519KeyPair(encryptedX25519KeyPair, for: groupPublicKey, userKeyPair: userKeyPair, transaction: transaction)
+        // Handle the ED25519 key pair if needed
+        if let timestamp = timestamp, let encryptedED25519KeyPair = wrapper.encryptedED25519KeyPair {
+            handleEncryptedED25519KeyPair(encryptedED25519KeyPair, for: groupPublicKey, timestamp: timestamp, userKeyPair: userKeyPair, transaction: transaction)
+        }
+    }
+    
+    private static func handleEncryptedX25519KeyPair(_ encryptedX25519KeyPair: Data, for groupPublicKey: String, userKeyPair: ECKeyPair, transaction: Any) -> String? {
         let plaintext: Data
         do {
-            plaintext = try MessageReceiver.decryptWithSessionProtocol(ciphertext: encryptedKeyPair, using: userKeyPair).plaintext
+            plaintext = try MessageReceiver.decryptWithSessionProtocol(ciphertext: encryptedX25519KeyPair, using: userKeyPair).plaintext
         } catch {
-            return SNLog("Couldn't decrypt closed group encryption key pair.")
+            SNLog("Couldn't decrypt closed group encryption key pair."); return nil
         }
         // Parse it
         let proto: SNProtoKeyPair
         do {
             proto = try SNProtoKeyPair.parseData(plaintext)
         } catch {
-            return SNLog("Couldn't parse closed group encryption key pair.")
+            SNLog("Couldn't parse closed group encryption key pair."); return nil
         }
         let keyPair: ECKeyPair
         do {
             keyPair = try ECKeyPair(publicKeyData: proto.publicKey.removing05PrefixIfNeeded(), privateKeyData: proto.privateKey)
         } catch {
-            return SNLog("Couldn't parse closed group encryption key pair.")
+            SNLog("Couldn't parse closed group encryption key pair."); return nil
         }
         // Store it if needed
         let closedGroupEncryptionKeyPairs = Storage.shared.getClosedGroupEncryptionKeyPairs(for: groupPublicKey)
         guard !closedGroupEncryptionKeyPairs.contains(keyPair) else {
-            return SNLog("Ignoring duplicate closed group encryption key pair.")
+            SNLog("Ignoring duplicate closed group encryption key pair."); return nil
         }
-        Storage.shared.addClosedGroupEncryptionKeyPair(keyPair, for: groupPublicKey, using: transaction)
         SNLog("Received a new closed group encryption key pair.")
+        return Storage.shared.addClosedGroupEncryptionKeyPair(keyPair, for: groupPublicKey, using: transaction)
+    }
+    
+    private static func handleEncryptedED25519KeyPair(_ encryptedED25519KeyPair: Data, for groupPublicKey: String, timestamp: String, userKeyPair: ECKeyPair, transaction: Any) {
+        let plaintext: Data
+        do {
+            plaintext = try MessageReceiver.decryptWithSessionProtocol(ciphertext: encryptedED25519KeyPair, using: userKeyPair).plaintext
+        } catch {
+            return SNLog("Couldn't decrypt closed group authentication key pair.")
+        }
+        // Parse it
+        let proto: SNProtoKeyPair
+        do {
+            proto = try SNProtoKeyPair.parseData(plaintext)
+        } catch {
+            return SNLog("Couldn't parse closed group authentication key pair.")
+        }
+        let keyPair = Sign.KeyPair(publicKey: Bytes(proto.publicKey), secretKey: Bytes(proto.privateKey))
+        // Store it
+        SNLog("Received a new closed group authentication key pair.")
+        return Storage.shared.addClosedGroupAuthenticationKeyPair(keyPair, for: groupPublicKey, timestamp: timestamp, using: transaction)
     }
     
     private static func handleClosedGroupNameChanged(_ message: ClosedGroupControlMessage, using transaction: Any) {

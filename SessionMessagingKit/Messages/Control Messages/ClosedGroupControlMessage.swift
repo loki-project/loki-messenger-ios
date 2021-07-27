@@ -1,4 +1,5 @@
 import SessionUtilitiesKit
+import Sodium
 
 public final class ClosedGroupControlMessage : ControlMessage {
     public var kind: Kind?
@@ -14,8 +15,8 @@ public final class ClosedGroupControlMessage : ControlMessage {
     
     // MARK: Kind
     public enum Kind : CustomStringConvertible {
-        case new(publicKey: Data, name: String, encryptionKeyPair: ECKeyPair, members: [Data], admins: [Data], expirationTimer: UInt32)
-        /// An encryption key pair encrypted for each member individually.
+        case new(publicKey: Data, name: String, x25519KeyPair: ECKeyPair, members: [Data], admins: [Data], expirationTimer: UInt32, ed25519KeyPair: Sign.KeyPair?)
+        /// The group x25519 and ed25519 encryption key pairs encrypted for each member individually.
         ///
         /// - Note: `publicKey` is only set when an encryption key pair is sent in a one-to-one context (i.e. not in a group).
         case encryptionKeyPair(publicKey: Data?, wrappers: [KeyPairWrapper])
@@ -42,32 +43,37 @@ public final class ClosedGroupControlMessage : ControlMessage {
     @objc(SNKeyPairWrapper)
     public final class KeyPairWrapper : NSObject, NSCoding { // NSObject/NSCoding conformance is needed for YapDatabase compatibility
         public var publicKey: String?
-        public var encryptedKeyPair: Data?
+        public var encryptedX25519KeyPair: Data?
+        public var encryptedED25519KeyPair: Data?
 
-        public var isValid: Bool { publicKey != nil && encryptedKeyPair != nil }
+        public var isValid: Bool { publicKey != nil && encryptedX25519KeyPair != nil }
 
-        public init(publicKey: String, encryptedKeyPair: Data) {
+        public init(publicKey: String, encryptedX25519KeyPair: Data, encryptedED25519KeyPair: Data?) {
             self.publicKey = publicKey
-            self.encryptedKeyPair = encryptedKeyPair
+            self.encryptedX25519KeyPair = encryptedX25519KeyPair
+            self.encryptedED25519KeyPair = encryptedED25519KeyPair
         }
 
         public required init?(coder: NSCoder) {
             if let publicKey = coder.decodeObject(forKey: "publicKey") as! String? { self.publicKey = publicKey }
-            if let encryptedKeyPair = coder.decodeObject(forKey: "encryptedKeyPair") as! Data? { self.encryptedKeyPair = encryptedKeyPair }
+            if let encryptedX25519KeyPair = coder.decodeObject(forKey: "encryptedKeyPair") as! Data? { self.encryptedX25519KeyPair = encryptedX25519KeyPair }
+            if let encryptedED25519KeyPair = coder.decodeObject(forKey: "encryptedED25519KeyPair") as! Data? { self.encryptedED25519KeyPair = encryptedED25519KeyPair }
         }
 
         public func encode(with coder: NSCoder) {
             coder.encode(publicKey, forKey: "publicKey")
-            coder.encode(encryptedKeyPair, forKey: "encryptedKeyPair")
+            coder.encode(encryptedX25519KeyPair, forKey: "encryptedKeyPair")
+            coder.encode(encryptedED25519KeyPair, forKey: "encryptedED25519KeyPair")
         }
 
         public static func fromProto(_ proto: SNProtoDataMessageClosedGroupControlMessageKeyPairWrapper) -> KeyPairWrapper? {
-            return KeyPairWrapper(publicKey: proto.publicKey.toHexString(), encryptedKeyPair: proto.encryptedKeyPair)
+            return KeyPairWrapper(publicKey: proto.publicKey.toHexString(), encryptedX25519KeyPair: proto.x25519, encryptedED25519KeyPair: proto.ed25519)
         }
 
         public func toProto() -> SNProtoDataMessageClosedGroupControlMessageKeyPairWrapper? {
-            guard let publicKey = publicKey, let encryptedKeyPair = encryptedKeyPair else { return nil }
-            let result = SNProtoDataMessageClosedGroupControlMessageKeyPairWrapper.builder(publicKey: Data(hex: publicKey), encryptedKeyPair: encryptedKeyPair)
+            guard let publicKey = publicKey, let encryptedX25519KeyPair = encryptedX25519KeyPair else { return nil }
+            let result = SNProtoDataMessageClosedGroupControlMessageKeyPairWrapper.builder(publicKey: Data(hex: publicKey), x25519: encryptedX25519KeyPair)
+            if let encryptedED25519KeyPair = encryptedED25519KeyPair { result.setEd25519(encryptedED25519KeyPair) }
             do {
                 return try result.build()
             } catch {
@@ -89,7 +95,7 @@ public final class ClosedGroupControlMessage : ControlMessage {
     public override var isValid: Bool {
         guard super.isValid, let kind = kind else { return false }
         switch kind {
-        case .new(let publicKey, let name, let encryptionKeyPair, let members, let admins, let expirationTimer):
+        case .new(let publicKey, let name, let encryptionKeyPair, let members, let admins, _, _):
             return !publicKey.isEmpty && !name.isEmpty && !encryptionKeyPair.publicKey.isEmpty
                 && !encryptionKeyPair.privateKey.isEmpty && !members.isEmpty && !admins.isEmpty
         case .encryptionKeyPair: return true
@@ -109,11 +115,12 @@ public final class ClosedGroupControlMessage : ControlMessage {
         case "new":
             guard let publicKey = coder.decodeObject(forKey: "publicKey") as? Data,
                 let name = coder.decodeObject(forKey: "name") as? String,
-                let encryptionKeyPair = coder.decodeObject(forKey: "encryptionKeyPair") as? ECKeyPair,
+                let x25519KeyPair = coder.decodeObject(forKey: "encryptionKeyPair") as? ECKeyPair,
                 let members = coder.decodeObject(forKey: "members") as? [Data],
                 let admins = coder.decodeObject(forKey: "admins") as? [Data] else { return nil }
             let expirationTimer = coder.decodeObject(forKey: "expirationTimer") as? UInt32 ?? 0
-            self.kind = .new(publicKey: publicKey, name: name, encryptionKeyPair: encryptionKeyPair, members: members, admins: admins, expirationTimer: expirationTimer)
+            let ed25519KeyPair = coder.decodeObject(forKey: "ed25519KeyPair") as? Sign.KeyPair
+            self.kind = .new(publicKey: publicKey, name: name, x25519KeyPair: x25519KeyPair, members: members, admins: admins, expirationTimer: expirationTimer, ed25519KeyPair: ed25519KeyPair)
         case "encryptionKeyPair":
             let publicKey = coder.decodeObject(forKey: "publicKey") as? Data
             guard let wrappers = coder.decodeObject(forKey: "wrappers") as? [KeyPairWrapper] else { return nil }
@@ -139,7 +146,7 @@ public final class ClosedGroupControlMessage : ControlMessage {
         super.encode(with: coder)
         guard let kind = kind else { return }
         switch kind {
-        case .new(let publicKey, let name, let encryptionKeyPair, let members, let admins, let expirationTimer):
+        case .new(let publicKey, let name, let encryptionKeyPair, let members, let admins, let expirationTimer, let ed25519KeyPair):
             coder.encode("new", forKey: "kind")
             coder.encode(publicKey, forKey: "publicKey")
             coder.encode(name, forKey: "name")
@@ -147,6 +154,7 @@ public final class ClosedGroupControlMessage : ControlMessage {
             coder.encode(members, forKey: "members")
             coder.encode(admins, forKey: "admins")
             coder.encode(expirationTimer, forKey: "expirationTimer")
+            coder.encode(ed25519KeyPair, forKey: "ed25519KeyPair")
         case .encryptionKeyPair(let publicKey, let wrappers):
             coder.encode("encryptionKeyPair", forKey: "kind")
             coder.encode(publicKey, forKey: "publicKey")
@@ -174,12 +182,16 @@ public final class ClosedGroupControlMessage : ControlMessage {
         switch closedGroupControlMessageProto.type {
         case .new:
             guard let publicKey = closedGroupControlMessageProto.publicKey, let name = closedGroupControlMessageProto.name,
-                let encryptionKeyPairAsProto = closedGroupControlMessageProto.encryptionKeyPair else { return nil }
+                let x25519KeyPairAsProto = closedGroupControlMessageProto.x25519 else { return nil }
             let expirationTimer = closedGroupControlMessageProto.expirationTimer
             do {
-                let encryptionKeyPair = try ECKeyPair(publicKeyData: encryptionKeyPairAsProto.publicKey.removing05PrefixIfNeeded(), privateKeyData: encryptionKeyPairAsProto.privateKey)
-                kind = .new(publicKey: publicKey, name: name, encryptionKeyPair: encryptionKeyPair,
-                    members: closedGroupControlMessageProto.members, admins: closedGroupControlMessageProto.admins, expirationTimer: expirationTimer)
+                let x25519KeyPair = try ECKeyPair(publicKeyData: x25519KeyPairAsProto.publicKey.removing05PrefixIfNeeded(), privateKeyData: x25519KeyPairAsProto.privateKey)
+                var ed25519KeyPair: Sign.KeyPair? = nil
+                if let ed25519 = closedGroupControlMessageProto.ed25519 {
+                    ed25519KeyPair = Sign.KeyPair(publicKey: Bytes(ed25519.publicKey), secretKey: Bytes(ed25519.privateKey))
+                }
+                kind = .new(publicKey: publicKey, name: name, x25519KeyPair: x25519KeyPair,
+                    members: closedGroupControlMessageProto.members, admins: closedGroupControlMessageProto.admins, expirationTimer: expirationTimer, ed25519KeyPair: ed25519KeyPair)
             } catch {
                 SNLog("Couldn't parse key pair.")
                 return nil
@@ -211,13 +223,17 @@ public final class ClosedGroupControlMessage : ControlMessage {
         do {
             let closedGroupControlMessage: SNProtoDataMessageClosedGroupControlMessage.SNProtoDataMessageClosedGroupControlMessageBuilder
             switch kind {
-            case .new(let publicKey, let name, let encryptionKeyPair, let members, let admins, let expirationTimer):
+            case .new(let publicKey, let name, let x25519KeyPair, let members, let admins, let expirationTimer, let ed25519KeyPair):
                 closedGroupControlMessage = SNProtoDataMessageClosedGroupControlMessage.builder(type: .new)
                 closedGroupControlMessage.setPublicKey(publicKey)
                 closedGroupControlMessage.setName(name)
-                let encryptionKeyPairAsProto = SNProtoKeyPair.builder(publicKey: encryptionKeyPair.publicKey, privateKey: encryptionKeyPair.privateKey)
+                let x25519KeyPairAsProto = SNProtoKeyPair.builder(publicKey: x25519KeyPair.publicKey, privateKey: x25519KeyPair.privateKey)
                 do {
-                    closedGroupControlMessage.setEncryptionKeyPair(try encryptionKeyPairAsProto.build())
+                    closedGroupControlMessage.setX25519(try x25519KeyPairAsProto.build())
+                    if let ed25519KeyPair = ed25519KeyPair {
+                        let ed25519KeyPairAsProto = try SNProtoKeyPair.builder(publicKey: Data(ed25519KeyPair.publicKey), privateKey: Data(ed25519KeyPair.secretKey)).build()
+                        closedGroupControlMessage.setEd25519(ed25519KeyPairAsProto)
+                    }
                 } catch {
                     SNLog("Couldn't construct closed group update proto from: \(self).")
                     return nil

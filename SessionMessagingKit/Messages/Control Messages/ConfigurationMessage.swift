@@ -1,4 +1,5 @@
 import SessionUtilitiesKit
+import Sodium
 
 @objc(SNConfigurationMessage)
 public final class ConfigurationMessage : ControlMessage {
@@ -98,17 +99,19 @@ extension ConfigurationMessage {
     public final class ClosedGroup : NSObject, NSCoding { // NSObject/NSCoding conformance is needed for YapDatabase compatibility
         public let publicKey: String
         public let name: String
-        public let encryptionKeyPair: ECKeyPair
+        public let x25519KeyPair: ECKeyPair
+        public let ed25519KeyPair: Sign.KeyPair?
         public let members: Set<String>
         public let admins: Set<String>
         public let expirationTimer: UInt32
 
         public var isValid: Bool { !members.isEmpty && !admins.isEmpty }
 
-        public init(publicKey: String, name: String, encryptionKeyPair: ECKeyPair, members: Set<String>, admins: Set<String>, expirationTimer: UInt32) {
+        public init(publicKey: String, name: String, x25519KeyPair: ECKeyPair, ed25519KeyPair: Sign.KeyPair?, members: Set<String>, admins: Set<String>, expirationTimer: UInt32) {
             self.publicKey = publicKey
             self.name = name
-            self.encryptionKeyPair = encryptionKeyPair
+            self.x25519KeyPair = x25519KeyPair
+            self.ed25519KeyPair = ed25519KeyPair
             self.members = members
             self.admins = admins
             self.expirationTimer = expirationTimer
@@ -117,13 +120,15 @@ extension ConfigurationMessage {
         public required init?(coder: NSCoder) {
             guard let publicKey = coder.decodeObject(forKey: "publicKey") as! String?,
                 let name = coder.decodeObject(forKey: "name") as! String?,
-                let encryptionKeyPair = coder.decodeObject(forKey: "encryptionKeyPair") as! ECKeyPair?,
+                let x25519KeyPair = coder.decodeObject(forKey: "encryptionKeyPair") as! ECKeyPair?,
                 let members = coder.decodeObject(forKey: "members") as! Set<String>?,
                 let admins = coder.decodeObject(forKey: "admins") as! Set<String>? else { return nil }
                 let expirationTimer = coder.decodeObject(forKey: "expirationTimer") as? UInt32 ?? 0
+            let ed25519KeyPair = coder.decodeObject(forKey: "ed25519KeyPair") as! Sign.KeyPair?
             self.publicKey = publicKey
             self.name = name
-            self.encryptionKeyPair = encryptionKeyPair
+            self.x25519KeyPair = x25519KeyPair
+            self.ed25519KeyPair = ed25519KeyPair
             self.members = members
             self.admins = admins
             self.expirationTimer = expirationTimer
@@ -132,7 +137,8 @@ extension ConfigurationMessage {
         public func encode(with coder: NSCoder) {
             coder.encode(publicKey, forKey: "publicKey")
             coder.encode(name, forKey: "name")
-            coder.encode(encryptionKeyPair, forKey: "encryptionKeyPair")
+            coder.encode(x25519KeyPair, forKey: "encryptionKeyPair")
+            coder.encode(ed25519KeyPair, forKey: "ed25519KeyPair")
             coder.encode(members, forKey: "members")
             coder.encode(admins, forKey: "admins")
             coder.encode(expirationTimer, forKey: "expirationTimer")
@@ -141,18 +147,22 @@ extension ConfigurationMessage {
         public static func fromProto(_ proto: SNProtoConfigurationMessageClosedGroup) -> ClosedGroup? {
             guard let publicKey = proto.publicKey?.toHexString(),
                 let name = proto.name,
-                let encryptionKeyPairAsProto = proto.encryptionKeyPair else { return nil }
-            let encryptionKeyPair: ECKeyPair
+                let x25519KeyPairAsProto = proto.x25519 else { return nil }
+            let x25519KeyPair: ECKeyPair
             do {
-                encryptionKeyPair = try ECKeyPair(publicKeyData: encryptionKeyPairAsProto.publicKey, privateKeyData: encryptionKeyPairAsProto.privateKey)
+                x25519KeyPair = try ECKeyPair(publicKeyData: x25519KeyPairAsProto.publicKey, privateKeyData: x25519KeyPairAsProto.privateKey)
             } catch {
                 SNLog("Couldn't construct closed group from proto: \(self).")
                 return nil
             }
+            var ed25519KeyPair: Sign.KeyPair? = nil
+            if let ed25519KeyPairAsProto = proto.ed25519 {
+                ed25519KeyPair = Sign.KeyPair(publicKey: Bytes(ed25519KeyPairAsProto.publicKey), secretKey: Bytes(ed25519KeyPairAsProto.privateKey))
+            }
             let members = Set(proto.members.map { $0.toHexString() })
             let admins = Set(proto.admins.map { $0.toHexString() })
             let expirationTimer = proto.expirationTimer
-            let result = ClosedGroup(publicKey: publicKey, name: name, encryptionKeyPair: encryptionKeyPair, members: members, admins: admins, expirationTimer: expirationTimer)
+            let result = ClosedGroup(publicKey: publicKey, name: name, x25519KeyPair: x25519KeyPair, ed25519KeyPair: ed25519KeyPair, members: members, admins: admins, expirationTimer: expirationTimer)
             guard result.isValid else { return nil }
             return result
         }
@@ -163,8 +173,8 @@ extension ConfigurationMessage {
             result.setPublicKey(Data(hex: publicKey))
             result.setName(name)
             do {
-                let encryptionKeyPairAsProto = try SNProtoKeyPair.builder(publicKey: encryptionKeyPair.publicKey, privateKey: encryptionKeyPair.privateKey).build()
-                result.setEncryptionKeyPair(encryptionKeyPairAsProto)
+                let x25519KeyPairAsProto = try SNProtoKeyPair.builder(publicKey: x25519KeyPair.publicKey, privateKey: x25519KeyPair.privateKey).build()
+                result.setX25519(x25519KeyPairAsProto)
             } catch {
                 SNLog("Couldn't construct closed group proto from: \(self).")
                 return nil

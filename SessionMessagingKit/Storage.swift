@@ -15,7 +15,7 @@ public protocol SessionMessagingKitStorageProtocol {
 
     func getUserPublicKey() -> String?
     func getUserKeyPair() -> ECKeyPair?
-    func getUserED25519KeyPair() -> Box.KeyPair?
+    func getUserED25519KeyPair() -> Sign.KeyPair?
     func getUser() -> Contact?
     func getAllContacts() -> Set<Contact>
 

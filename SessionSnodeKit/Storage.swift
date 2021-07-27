@@ -11,7 +11,7 @@ public protocol SessionSnodeKitStorageProtocol {
     func writeSync(with block: @escaping (Any) -> Void)
 
     func getUserPublicKey() -> String?
-    func getUserED25519KeyPair() -> Box.KeyPair?
+    func getUserED25519KeyPair() -> Sign.KeyPair?
     func getOnionRequestPaths() -> [OnionRequestAPI.Path]
     func setOnionRequestPaths(to paths: [OnionRequestAPI.Path], using transaction: Any)
     func getSnodePool() -> Set<Snode>
@@ -25,4 +25,6 @@ public protocol SessionSnodeKitStorageProtocol {
     func pruneLastMessageHashInfoIfExpired(for snode: Snode, associatedWith publicKey: String)
     func getReceivedMessages(for publicKey: String) -> Set<String>
     func setReceivedMessages(to receivedMessages: Set<String>, for publicKey: String, using transaction: Any)
+    func getLatestClosedGroupAuthenticationKeyPair(for groupPublicKey: String) -> Sign.KeyPair?
+    func isClosedGroup(_ publicKey: String) -> Bool
 }

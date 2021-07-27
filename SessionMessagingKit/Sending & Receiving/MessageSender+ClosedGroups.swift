@@ -1,7 +1,9 @@
 import PromiseKit
+import Sodium
 
 extension MessageSender {
-    public static var distributingClosedGroupEncryptionKeyPairs: [String:[ECKeyPair]] = [:]
+    private static var distributingClosedGroupX25519KeyPairs: [String:[ECKeyPair]] = [:]
+    private static var distributingClosedGroupED25519KeyPairs: [String:[Sign.KeyPair]] = [:]
     
     public static func createClosedGroup(name: String, members: Set<String>, transaction: YapDatabaseReadWriteTransaction) -> Promise<TSGroupThread> {
         // Prepare
@@ -9,8 +11,14 @@ extension MessageSender {
         let userPublicKey = getUserHexEncodedPublicKey()
         // Generate the group's public key
         let groupPublicKey = Curve25519.generateKeyPair().hexEncodedPublicKey // Includes the "05" prefix
-        // Generate the key pair that'll be used for encryption and decryption
-        let encryptionKeyPair = Curve25519.generateKeyPair()
+        // Generate:
+        // • The key pair that'll be used for encryption and decryption (the X25519 key pair)
+        // • The key pair that'll be used for authenticated message retrieval (the ED25519 key pair)
+        let sodium = Sodium()
+        let ed25519KeyPair = sodium.sign.keyPair()!
+        let x25519PublicKey = sodium.sign.toX25519(ed25519PublicKey: ed25519KeyPair.publicKey)!
+        let x25519SecretKey = sodium.sign.toX25519(ed25519SecretKey: ed25519KeyPair.secretKey)!
+        let x25519KeyPair = try! ECKeyPair(publicKeyData: Data(x25519PublicKey), privateKeyData: Data(x25519SecretKey))
         // Ensure the current user is included in the member list
         members.insert(userPublicKey)
         let membersAsData = members.map { Data(hex: $0) }
@@ -27,7 +35,7 @@ extension MessageSender {
             let thread = TSContactThread.getOrCreateThread(withContactSessionID: member, transaction: transaction)
             thread.save(with: transaction)
             let closedGroupControlMessageKind = ClosedGroupControlMessage.Kind.new(publicKey: Data(hex: groupPublicKey), name: name,
-                encryptionKeyPair: encryptionKeyPair, members: membersAsData, admins: adminsAsData, expirationTimer: 0)
+                x25519KeyPair: x25519KeyPair, members: membersAsData, admins: adminsAsData, expirationTimer: 0, ed25519KeyPair: ed25519KeyPair)
             let closedGroupControlMessage = ClosedGroupControlMessage(kind: closedGroupControlMessageKind)
             // Sending this non-durably is okay because we show a loader to the user. If they close the app while the
             // loader is still showing, it's within expectation that the group creation might be incomplete.
@@ -36,8 +44,9 @@ extension MessageSender {
         }
         // Add the group to the user's set of public keys to poll for
         Storage.shared.addClosedGroupPublicKey(groupPublicKey, using: transaction)
-        // Store the key pair
-        Storage.shared.addClosedGroupEncryptionKeyPair(encryptionKeyPair, for: groupPublicKey, using: transaction)
+        // Store the encryption and authentication key pairs
+        let timestamp = Storage.shared.addClosedGroupEncryptionKeyPair(x25519KeyPair, for: groupPublicKey, using: transaction)
+        Storage.shared.addClosedGroupAuthenticationKeyPair(ed25519KeyPair, for: groupPublicKey, timestamp: timestamp, using: transaction)
         // Notify the PN server
         promises.append(PushNotificationAPI.performOperation(.subscribe, for: groupPublicKey, publicKey: userPublicKey))
         // Notify the user
@@ -67,30 +76,49 @@ extension MessageSender {
             SNLog("Can't distribute new encryption key pair as a non-admin.")
             return Promise(error: Error.invalidClosedGroupUpdate)
         }
-        // Generate the new encryption key pair
-        let newKeyPair = Curve25519.generateKeyPair()
+        // Generate:
+        // • The key pair that'll be used for encryption and decryption (the X25519 key pair)
+        // • The key pair that'll be used for authenticated message retrieval (the ED25519 key pair)
+        let sodium = Sodium()
+        let ed25519KeyPair = sodium.sign.keyPair()!
+        let x25519PublicKey = sodium.sign.toX25519(ed25519PublicKey: ed25519KeyPair.publicKey)!
+        let x25519SecretKey = sodium.sign.toX25519(ed25519SecretKey: ed25519KeyPair.secretKey)!
+        let x25519KeyPair = try! ECKeyPair(publicKeyData: Data(x25519PublicKey), privateKeyData: Data(x25519SecretKey))
         // Distribute it
-        let proto = try! SNProtoKeyPair.builder(publicKey: newKeyPair.publicKey,
-            privateKey: newKeyPair.privateKey).build()
-        let plaintext = try! proto.serializedData()
+        let x25519KeyPairAsProto = try! SNProtoKeyPair.builder(publicKey: x25519KeyPair.publicKey,
+            privateKey: x25519KeyPair.privateKey).build()
+        let serializedX25519KeyPairProto = try! x25519KeyPairAsProto.serializedData()
+        let ed25519KeyPairAsProto = try! SNProtoKeyPair.builder(publicKey: Data(ed25519KeyPair.publicKey),
+            privateKey: Data(ed25519KeyPair.secretKey)).build()
+        let serializedED25519KeyPairProto = try! ed25519KeyPairAsProto.serializedData()
         let wrappers = targetMembers.compactMap { publicKey -> ClosedGroupControlMessage.KeyPairWrapper in
-            let ciphertext = try! MessageSender.encryptWithSessionProtocol(plaintext, for: publicKey)
-            return ClosedGroupControlMessage.KeyPairWrapper(publicKey: publicKey, encryptedKeyPair: ciphertext)
+            let encryptedX25519KeyPair = try! MessageSender.encryptWithSessionProtocol(serializedX25519KeyPairProto, for: publicKey)
+            let encryptedED25519KeyPair = try! MessageSender.encryptWithSessionProtocol(serializedED25519KeyPairProto, for: publicKey)
+            return ClosedGroupControlMessage.KeyPairWrapper(publicKey: publicKey, encryptedX25519KeyPair: encryptedX25519KeyPair, encryptedED25519KeyPair: encryptedED25519KeyPair)
         }
         let closedGroupControlMessage = ClosedGroupControlMessage(kind: .encryptionKeyPair(publicKey: nil, wrappers: wrappers))
-        var distributingKeyPairs = distributingClosedGroupEncryptionKeyPairs[groupPublicKey] ?? []
-        distributingKeyPairs.append(newKeyPair)
-        distributingClosedGroupEncryptionKeyPairs[groupPublicKey] = distributingKeyPairs
+        var distributingX25519KeyPairs = distributingClosedGroupX25519KeyPairs[groupPublicKey] ?? []
+        distributingX25519KeyPairs.append(x25519KeyPair)
+        distributingClosedGroupX25519KeyPairs[groupPublicKey] = distributingX25519KeyPairs
+        var distributingED25519KeyPairs = distributingClosedGroupED25519KeyPairs[groupPublicKey] ?? []
+        distributingED25519KeyPairs.append(ed25519KeyPair)
+        distributingClosedGroupED25519KeyPairs[groupPublicKey] = distributingED25519KeyPairs
         return MessageSender.sendNonDurably(closedGroupControlMessage, in: thread, using: transaction).done {
-            // Store it * after * having sent out the message to the group
+            // Store the new key pairs * after * having sent out the message to the group
             SNMessagingKitConfiguration.shared.storage.write { transaction in
-                Storage.shared.addClosedGroupEncryptionKeyPair(newKeyPair, for: groupPublicKey, using: transaction)
+                let timestamp = Storage.shared.addClosedGroupEncryptionKeyPair(x25519KeyPair, for: groupPublicKey, using: transaction)
+                Storage.shared.addClosedGroupAuthenticationKeyPair(ed25519KeyPair, for: groupPublicKey, timestamp: timestamp, using: transaction)
             }
-            var distributingKeyPairs = distributingClosedGroupEncryptionKeyPairs[groupPublicKey] ?? []
-            if let index = distributingKeyPairs.firstIndex(of: newKeyPair) {
-                distributingKeyPairs.remove(at: index)
+            var distributingX25519KeyPairs = distributingClosedGroupX25519KeyPairs[groupPublicKey] ?? []
+            if let index = distributingX25519KeyPairs.firstIndex(of: x25519KeyPair) {
+                distributingX25519KeyPairs.remove(at: index)
             }
-            distributingClosedGroupEncryptionKeyPairs[groupPublicKey] = distributingKeyPairs
+            distributingClosedGroupX25519KeyPairs[groupPublicKey] = distributingX25519KeyPairs
+            var distributingED25519KeyPairs = distributingClosedGroupED25519KeyPairs[groupPublicKey] ?? []
+            if let index = distributingED25519KeyPairs.firstIndex(where: { $0.publicKey == ed25519KeyPair.publicKey }) {
+                distributingED25519KeyPairs.remove(at: index)
+            }
+            distributingClosedGroupED25519KeyPairs[groupPublicKey] = distributingED25519KeyPairs
         }.map { _ in }
     }
     
@@ -164,10 +192,11 @@ extension MessageSender {
         let membersAsData = members.map { Data(hex: $0) }
         let adminsAsData = group.groupAdminIds.map { Data(hex: $0) }
         let expirationTimer = thread.disappearingMessagesDuration(with: transaction)
-        guard let encryptionKeyPair = Storage.shared.getLatestClosedGroupEncryptionKeyPair(for: groupPublicKey) else {
+        guard let x25519KeyPair = Storage.shared.getLatestClosedGroupEncryptionKeyPair(for: groupPublicKey) else {
             SNLog("Couldn't find encryption key pair for closed group: \(groupPublicKey).")
             return Promise(error: Error.noKeyPair)
         }
+        let ed25519KeyPair = Storage.shared.getLatestClosedGroupAuthenticationKeyPair(for: groupPublicKey)
         // Send the update to the group
         let closedGroupControlMessage = ClosedGroupControlMessage(kind: .membersAdded(members: newMembers.map { Data(hex: $0) }))
         MessageSender.send(closedGroupControlMessage, in: thread, using: transaction)
@@ -176,7 +205,7 @@ extension MessageSender {
             let thread = TSContactThread.getOrCreateThread(withContactSessionID: member, transaction: transaction)
             thread.save(with: transaction)
             let closedGroupControlMessageKind = ClosedGroupControlMessage.Kind.new(publicKey: Data(hex: groupPublicKey), name: group.groupName!,
-                encryptionKeyPair: encryptionKeyPair, members: membersAsData, admins: adminsAsData, expirationTimer: expirationTimer)
+                x25519KeyPair: x25519KeyPair, members: membersAsData, admins: adminsAsData, expirationTimer: expirationTimer, ed25519KeyPair: ed25519KeyPair)
             let closedGroupControlMessage = ClosedGroupControlMessage(kind: closedGroupControlMessageKind)
             MessageSender.send(closedGroupControlMessage, in: thread, using: transaction)
         }
@@ -322,15 +351,24 @@ extension MessageSender {
             return SNLog("Refusing to send latest encryption key pair to non-member.")
         }
         // Get the latest encryption key pair
-        guard let encryptionKeyPair = distributingClosedGroupEncryptionKeyPairs[groupPublicKey]?.last
+        guard let x25519KeyPair = distributingClosedGroupX25519KeyPairs[groupPublicKey]?.last
             ?? Storage.shared.getLatestClosedGroupEncryptionKeyPair(for: groupPublicKey) else { return }
+        let ed25519KeyPair = distributingClosedGroupED25519KeyPairs[groupPublicKey]?.last
+            ?? Storage.shared.getLatestClosedGroupAuthenticationKeyPair(for: groupPublicKey)
         // Send it
-        guard let proto = try? SNProtoKeyPair.builder(publicKey: encryptionKeyPair.publicKey,
-            privateKey: encryptionKeyPair.privateKey).build(), let plaintext = try? proto.serializedData() else { return }
+        guard let x25519KeyPairAsProto = try? SNProtoKeyPair.builder(publicKey: x25519KeyPair.publicKey,
+            privateKey: x25519KeyPair.privateKey).build(),
+            let serializedX25519KeyPairProto = try? x25519KeyPairAsProto.serializedData() else { return }
         let contactThread = TSContactThread.getOrCreateThread(withContactSessionID: publicKey, transaction: transaction)
-        guard let ciphertext = try? MessageSender.encryptWithSessionProtocol(plaintext, for: publicKey) else { return }
-        SNLog("Sending latest encryption key pair to: \(publicKey).")
-        let wrapper = ClosedGroupControlMessage.KeyPairWrapper(publicKey: publicKey, encryptedKeyPair: ciphertext)
+        guard let encryptedX25519KeyPair = try? MessageSender.encryptWithSessionProtocol(serializedX25519KeyPairProto, for: publicKey) else { return }
+        SNLog("Sending latest encryption and authentication key pairs to: \(publicKey).")
+        var encryptedED25519KeyPair: Data? = nil
+        if let ed25519KeyPair = ed25519KeyPair,
+            let ed25519KeyPairAsProto = try? SNProtoKeyPair.builder(publicKey: Data(ed25519KeyPair.publicKey), privateKey: Data(ed25519KeyPair.secretKey)).build(),
+            let serializedED25519KeyPairProto = try? ed25519KeyPairAsProto.serializedData() {
+            encryptedED25519KeyPair = try? MessageSender.encryptWithSessionProtocol(serializedED25519KeyPairProto, for: publicKey)
+        }
+        let wrapper = ClosedGroupControlMessage.KeyPairWrapper(publicKey: publicKey, encryptedX25519KeyPair: encryptedX25519KeyPair, encryptedED25519KeyPair: encryptedED25519KeyPair)
         let closedGroupControlMessage = ClosedGroupControlMessage(kind: .encryptionKeyPair(publicKey: Data(hex: groupPublicKey), wrappers: [ wrapper ]))
         MessageSender.send(closedGroupControlMessage, in: contactThread, using: transaction)
     }

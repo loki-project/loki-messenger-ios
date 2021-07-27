@@ -25,14 +25,14 @@ extension Storage {
         return OWSIdentityManager.shared().identityKeyPair()
     }
     
-    public func getUserED25519KeyPair() -> Box.KeyPair? {
+    public func getUserED25519KeyPair() -> Sign.KeyPair? {
         let dbConnection = OWSIdentityManager.shared().dbConnection
         let collection = OWSPrimaryStorageIdentityKeyStoreCollection
         guard let hexEncodedPublicKey = dbConnection.object(forKey: LKED25519PublicKey, inCollection: collection) as? String,
             let hexEncodedSecretKey = dbConnection.object(forKey: LKED25519SecretKey, inCollection: collection) as? String else { return nil }
-        let publicKey = Box.KeyPair.PublicKey(hex: hexEncodedPublicKey)
-        let secretKey = Box.KeyPair.SecretKey(hex: hexEncodedSecretKey)
-        return Box.KeyPair(publicKey: publicKey, secretKey: secretKey)
+        let publicKey = Sign.KeyPair.PublicKey(hex: hexEncodedPublicKey)
+        let secretKey = Sign.KeyPair.SecretKey(hex: hexEncodedSecretKey)
+        return Sign.KeyPair(publicKey: publicKey, secretKey: secretKey)
     }
 
     @objc public func getUser() -> Contact? {

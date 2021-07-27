@@ -20,8 +20,9 @@ extension ConfigurationMessage {
                     let groupID = thread.groupModel.groupId
                     let groupPublicKey = LKGroupUtilities.getDecodedGroupID(groupID)
                     guard storage.isClosedGroup(groupPublicKey),
-                        let encryptionKeyPair = storage.getLatestClosedGroupEncryptionKeyPair(for: groupPublicKey) else { return }
-                    let closedGroup = ClosedGroup(publicKey: groupPublicKey, name: thread.groupModel.groupName!, encryptionKeyPair: encryptionKeyPair,
+                        let x25519KeyPair = storage.getLatestClosedGroupEncryptionKeyPair(for: groupPublicKey) else { return }
+                    let ed25519KeyPair = storage.getLatestClosedGroupAuthenticationKeyPair(for: groupPublicKey)
+                    let closedGroup = ClosedGroup(publicKey: groupPublicKey, name: thread.groupModel.groupName!, x25519KeyPair: x25519KeyPair, ed25519KeyPair: ed25519KeyPair,
                         members: Set(thread.groupModel.groupMemberIds), admins: Set(thread.groupModel.groupAdminIds), expirationTimer: thread.disappearingMessagesDuration(with: transaction))
                     closedGroups.insert(closedGroup)
                 case .openGroup:

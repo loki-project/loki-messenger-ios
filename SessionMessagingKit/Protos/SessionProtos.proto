@@ -122,20 +122,22 @@ message DataMessage {
 
     message KeyPairWrapper {
       // @required
-      required bytes publicKey        = 1; // The public key of the user the key pair is meant for
+      required bytes publicKey = 1; // The public key of the user the key pair is meant for
       // @required
-      required bytes encryptedKeyPair = 2; // The encrypted key pair
+      required bytes x25519    = 2; // The encrypted x25519 key pair
+      optional bytes ed25519   = 3; // The encrypted ed25519 key pair
     }
 
     // @required
-    required Type           type              = 1;
-    optional bytes          publicKey         = 2;
-    optional string         name              = 3;
-    optional KeyPair        encryptionKeyPair = 4;
-    repeated bytes          members           = 5;
-    repeated bytes          admins            = 6;
-    repeated KeyPairWrapper wrappers          = 7;
-    optional uint32         expirationTimer   = 8;
+    required Type           type            = 1;
+    optional bytes          publicKey       = 2;
+    optional string         name            = 3;
+    optional KeyPair        x25519          = 4;
+    repeated bytes          members         = 5;
+    repeated bytes          admins          = 6;
+    repeated KeyPairWrapper wrappers        = 7;
+    optional uint32         expirationTimer = 8;
+    optional KeyPair        ed25519         = 9;
   }
 
   optional string                    body                      = 1;
@@ -156,12 +158,13 @@ message DataMessage {
 message ConfigurationMessage {
 
   message ClosedGroup {
-    optional bytes   publicKey         = 1;
-    optional string  name              = 2;
-    optional KeyPair encryptionKeyPair = 3;
-    repeated bytes   members           = 4;
-    repeated bytes   admins            = 5;
-    optional uint32  expirationTimer   = 6;
+    optional bytes   publicKey       = 1;
+    optional string  name            = 2;
+    optional KeyPair x25519          = 3;
+    repeated bytes   members         = 4;
+    repeated bytes   admins          = 5;
+    optional uint32  expirationTimer = 6;
+    optional KeyPair ed25519         = 7;
   }
 
   message Contact {
