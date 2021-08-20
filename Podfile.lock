@@ -21,6 +21,7 @@ PODS:
   - Curve25519Kit (2.1.0):
     - CocoaLumberjack
     - SignalCoreKit
+  - GoogleWebRTC (1.1.31999)
   - GRKOpenSSLFramework (1.0.2.20)
   - HKDFKit (0.0.3)
   - Mantle (2.1.0):
@@ -44,6 +45,7 @@ PODS:
   - SignalCoreKit (1.0.0):
     - CocoaLumberjack
     - GRKOpenSSLFramework
+  - SocketRocket (0.5.1)
   - Sodium (0.8.0)
   - SQLCipher (4.4.0):
     - SQLCipher/standard (= 4.4.0)
@@ -124,6 +126,7 @@ DEPENDENCIES:
   - AFNetworking
   - CryptoSwift
   - Curve25519Kit (from `https://github.com/signalapp/Curve25519Kit.git`)
+  - GoogleWebRTC
   - GRKOpenSSLFramework
   - HKDFKit
   - Mantle (from `https://github.com/signalapp/Mantle`, branch `signal-master`)
@@ -133,6 +136,7 @@ DEPENDENCIES:
   - Reachability
   - SAMKeychain
   - SignalCoreKit (from `https://github.com/signalapp/SignalCoreKit.git`)
+  - SocketRocket (~> 0.5.1)
   - Sodium (~> 0.8.0)
   - SwiftProtobuf (~> 1.5.0)
   - YapDatabase/SQLCipher (from `https://github.com/loki-project/session-ios-yap-database.git`, branch `signal-release`)
@@ -144,6 +148,7 @@ SPEC REPOS:
     - AFNetworking
     - CocoaLumberjack
     - CryptoSwift
+    - GoogleWebRTC
     - GRKOpenSSLFramework
     - HKDFKit
     - NVActivityIndicatorView
@@ -151,6 +156,7 @@ SPEC REPOS:
     - PureLayout
     - Reachability
     - SAMKeychain
+    - SocketRocket
     - Sodium
     - SQLCipher
     - SwiftProtobuf
@@ -192,6 +198,7 @@ SPEC CHECKSUMS:
   CocoaLumberjack: bd155f2dd06c0e0b03f876f7a3ee55693122ec94
   CryptoSwift: 093499be1a94b0cae36e6c26b70870668cb56060
   Curve25519Kit: e63f9859ede02438ae3defc5e1a87e09d1ec7ee6
+  GoogleWebRTC: b39a78c4f5cc6b0323415b9233db03a2faa7b0f0
   GRKOpenSSLFramework: dc635b0a9d4cd8af2a9ff80a61e779e21b69dfd8
   HKDFKit: c058305d6f64b84f28c50bd7aa89574625bcb62a
   Mantle: 2fa750afa478cd625a94230fbf1c13462f29395b
@@ -201,6 +208,7 @@ SPEC CHECKSUMS:
   Reachability: 33e18b67625424e47b6cde6d202dce689ad7af96
   SAMKeychain: 483e1c9f32984d50ca961e26818a534283b4cd5c
   SignalCoreKit: 4562b2bbd9830077439ca003f952a798457d4ea5
+  SocketRocket: d57c7159b83c3c6655745cd15302aa24b6bae531
   Sodium: 63c0ca312a932e6da481689537d4b35568841bdc
   SQLCipher: e434ed542b24f38ea7b36468a13f9765e1b5c072
   SwiftProtobuf: 241400280f912735c1e1b9fe675fdd2c6c4d42e2
@@ -208,6 +216,6 @@ SPEC CHECKSUMS:
   YYImage: 6db68da66f20d9f169ceb94dfb9947c3867b9665
   ZXingObjC: fdbb269f25dd2032da343e06f10224d62f537bdb
 
-PODFILE CHECKSUM: 50e6a35c838ba28d2ee02bc6018fdd297c04e55f
+PODFILE CHECKSUM: 215e4f2af32f65d98d1442e6ec0df3576c994a02
 
 COCOAPODS: 1.10.1

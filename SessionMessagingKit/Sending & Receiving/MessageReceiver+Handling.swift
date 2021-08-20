@@ -1,5 +1,6 @@
 import SignalCoreKit
 import SessionSnodeKit
+import WebRTC
 
 extension MessageReceiver {
 
@@ -16,6 +17,7 @@ extension MessageReceiver {
         case let message as ExpirationTimerUpdate: handleExpirationTimerUpdate(message, using: transaction)
         case let message as ConfigurationMessage: handleConfigurationMessage(message, using: transaction)
         case let message as UnsendRequest: handleUnsendRequest(message, using: transaction)
+        case let message as CallMessage: handleCallMessage(message, using: transaction)
         case let message as VisibleMessage: try handleVisibleMessage(message, associatedWithProto: proto, openGroupID: openGroupID, isBackgroundPoll: isBackgroundPoll, using: transaction)
         default: fatalError()
         }
@@ -52,7 +54,7 @@ extension MessageReceiver {
     public static func showTypingIndicatorIfNeeded(for senderPublicKey: String) {
         var threadOrNil: TSContactThread?
         Storage.read { transaction in
-            threadOrNil = TSContactThread.getWithContactSessionID(senderPublicKey, transaction: transaction)
+            threadOrNil = TSContactThread.fetch(for: senderPublicKey, using: transaction)
         }
         guard let thread = threadOrNil else { return }
         func showTypingIndicatorsIfNeeded() {
@@ -70,7 +72,7 @@ extension MessageReceiver {
     public static func hideTypingIndicatorIfNeeded(for senderPublicKey: String) {
         var threadOrNil: TSContactThread?
         Storage.read { transaction in
-            threadOrNil = TSContactThread.getWithContactSessionID(senderPublicKey, transaction: transaction)
+            threadOrNil = TSContactThread.fetch(for: senderPublicKey, using: transaction)
         }
         guard let thread = threadOrNil else { return }
         func hideTypingIndicatorsIfNeeded() {
@@ -88,7 +90,7 @@ extension MessageReceiver {
     public static func cancelTypingIndicatorsIfNeeded(for senderPublicKey: String) {
         var threadOrNil: TSContactThread?
         Storage.read { transaction in
-            threadOrNil = TSContactThread.getWithContactSessionID(senderPublicKey, transaction: transaction)
+            threadOrNil = TSContactThread.fetch(for: senderPublicKey, using: transaction)
         }
         guard let thread = threadOrNil else { return }
         func cancelTypingIndicatorsIfNeeded() {
@@ -110,7 +112,7 @@ extension MessageReceiver {
     private static func handleDataExtractionNotification(_ message: DataExtractionNotification, using transaction: Any) {
         let transaction = transaction as! YapDatabaseReadWriteTransaction
         guard message.groupPublicKey == nil,
-            let thread = TSContactThread.getWithContactSessionID(message.sender!, transaction: transaction) else { return }
+            let thread = TSContactThread.fetch(for: message.sender!, using: transaction) else { return }
         let type: TSInfoMessageType
         switch message.kind! {
         case .screenshot: type = .screenshotNotification
@@ -140,7 +142,7 @@ extension MessageReceiver {
             let groupID = LKGroupUtilities.getEncodedClosedGroupIDAsData(groupPublicKey)
             threadOrNil = TSGroupThread.fetch(uniqueId: TSGroupThread.threadId(fromGroupId: groupID), transaction: transaction)
         } else {
-            threadOrNil = TSContactThread.getWithContactSessionID(syncTarget ?? senderPublicKey, transaction: transaction)
+            threadOrNil = TSContactThread.fetch(for: syncTarget ?? senderPublicKey, using: transaction)
         }
         guard let thread = threadOrNil else { return }
         let configuration = OWSDisappearingMessagesConfiguration(threadId: thread.uniqueId!, enabled: true, durationSeconds: duration)
@@ -160,7 +162,7 @@ extension MessageReceiver {
             let groupID = LKGroupUtilities.getEncodedClosedGroupIDAsData(groupPublicKey)
             threadOrNil = TSGroupThread.fetch(uniqueId: TSGroupThread.threadId(fromGroupId: groupID), transaction: transaction)
         } else {
-            threadOrNil = TSContactThread.getWithContactSessionID(syncTarget ?? senderPublicKey, transaction: transaction)
+            threadOrNil = TSContactThread.fetch(for: syncTarget ?? senderPublicKey, using: transaction)
         }
         guard let thread = threadOrNil else { return }
         let configuration = OWSDisappearingMessagesConfiguration(threadId: thread.uniqueId!, enabled: false, durationSeconds: 24 * 60 * 60)
@@ -246,6 +248,51 @@ extension MessageReceiver {
                 }
                 messageToDelete.updateForDeletion(with: transaction)
             }
+        }
+    }
+    
+    
+    
+    // MARK: - Call Messages
+    
+    public static func handleCallMessage(_ message: CallMessage, using transaction: Any) {
+        func getWebRTCSession() -> WebRTCSession {
+            let result: WebRTCSession
+            if let current = WebRTCSession.current {
+                result = current
+            } else {
+                WebRTCSession.current = WebRTCSession(for: message.sender!)
+                result = WebRTCSession.current!
+            }
+            return result
+        }
+        switch message.kind! {
+        case .offer:
+            print("[Calls] Received offer message.")
+            // Delegate to the main app, which is expected to show a dialog confirming
+            // that the user wants to pick up the call. When they do, the SDP contained
+            // in the offer message will be passed to WebRTCSession.handleRemoteSDP(_:from:).
+            handleOfferCallMessage?(message)
+        case .answer:
+            print("[Calls] Received answer message.")
+            let sdp = RTCSessionDescription(type: .answer, sdp: message.sdps![0])
+            getWebRTCSession().handleRemoteSDP(sdp, from: message.sender!)
+            handleAnswerCallMessage?(message)
+        case .provisionalAnswer: break // TODO: Implement
+        case let .iceCandidates(sdpMLineIndexes, sdpMids):
+            var candidates: [RTCIceCandidate] = []
+            let sdps = message.sdps!
+            for i in 0..<sdps.count {
+                let sdp = sdps[i]
+                let sdpMLineIndex = sdpMLineIndexes[i]
+                let sdpMid = sdpMids[i]
+                let candidate = RTCIceCandidate(sdp: sdp, sdpMLineIndex: Int32(sdpMLineIndex), sdpMid: sdpMid)
+                candidates.append(candidate)
+            }
+            getWebRTCSession().handleICECandidates(candidates)
+        case .endCall:
+            print("[Calls] Received end call message.")
+            handleEndCallMessage?(message)
         }
     }
     

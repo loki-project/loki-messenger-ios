@@ -1,7 +1,46 @@
 import PromiseKit
+import WebRTC
 
 extension AppDelegate {
 
+    @objc
+    func setUpCallHandling() {
+        // Offer messages
+        MessageReceiver.handleOfferCallMessage = { message in
+            DispatchQueue.main.async {
+                let sdp = RTCSessionDescription(type: .offer, sdp: message.sdps![0])
+                guard let presentingVC = CurrentAppContext().frontmostViewController() else { preconditionFailure() } // TODO: Handle more gracefully
+                let alert = UIAlertController(title: "Incoming Call", message: nil, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "Accept", style: .default, handler: { _ in
+                    let callVC = CallVC(for: message.sender!, mode: .answer(sdp: sdp))
+                    presentingVC.dismiss(animated: true) {
+                        callVC.modalPresentationStyle = .overFullScreen
+                        callVC.modalTransitionStyle = .crossDissolve
+                        presentingVC.present(callVC, animated: true, completion: nil)
+                    }
+                }))
+                alert.addAction(UIAlertAction(title: "Decline", style: .default, handler: { _ in
+                    // Do nothing
+                }))
+                presentingVC.present(alert, animated: true, completion: nil)
+            }
+        }
+        // Answer messages
+        MessageReceiver.handleAnswerCallMessage = { message in
+            DispatchQueue.main.async {
+                guard let callVC = CurrentAppContext().frontmostViewController() as? CallVC else { return }
+                callVC.handleAnswerMessage(message)
+            }
+        }
+        // End call messages
+        MessageReceiver.handleEndCallMessage = { message in
+            DispatchQueue.main.async {
+                guard let callVC = CurrentAppContext().frontmostViewController() as? CallVC else { return }
+                callVC.handleEndCallMessage(message)
+            }
+        }
+    }
+    
     @objc(syncConfigurationIfNeeded)
     func syncConfigurationIfNeeded() {
         guard Storage.shared.getUser()?.name != nil else { return }
@@ -43,17 +82,16 @@ extension AppDelegate {
     
     @objc func getAppModeOrSystemDefault() -> AppMode {
         let userDefaults = UserDefaults.standard
-        
-        guard userDefaults.dictionaryRepresentation().keys.contains("appMode") else {
+        if userDefaults.dictionaryRepresentation().keys.contains("appMode") {
+            let mode = userDefaults.integer(forKey: "appMode")
+            return AppMode(rawValue: mode) ?? .light
+        } else {
             if #available(iOS 13.0, *) {
                 return UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light
             } else {
                 return .light
             }
         }
-        
-        let mode = userDefaults.integer(forKey: "appMode")
-        return AppMode(rawValue: mode) ?? .light
     }
     
 }
