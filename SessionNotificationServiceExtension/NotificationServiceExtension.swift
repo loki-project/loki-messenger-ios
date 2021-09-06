@@ -1,6 +1,7 @@
 import UserNotifications
 import SessionMessagingKit
 import SignalUtilitiesKit
+import PromiseKit
 
 public final class NotificationServiceExtension : UNNotificationServiceExtension {
     private var didPerformSetup = false
@@ -33,6 +34,7 @@ public final class NotificationServiceExtension : UNNotificationServiceExtension
                 let envelope = try? MessageWrapper.unwrap(data: data), let envelopeAsData = try? envelope.serializedData() else {
                 return self.handleFailure(for: notificationContent)
             }
+            var attachmentDownloadJobs: [AttachmentDownloadJob] = []
             Storage.write { transaction in // Intentionally capture self
                 do {
                     let (message, proto) = try MessageReceiver.parse(envelopeAsData, openGroupMessageServerID: nil, using: transaction)
@@ -69,6 +71,14 @@ public final class NotificationServiceExtension : UNNotificationServiceExtension
                         }
                         // Store the notification ID for unsend requests to later cancel this notification
                         tsIncomingMessage.setNotificationIdentifier(request.identifier, transaction: transaction)
+                        let attachments = visibleMessage.attachmentIDs.compactMap { TSAttachment.fetch(uniqueId: $0) as? TSAttachmentPointer }
+                        let attachmentsToDownload = attachments.filter { !$0.isDownloaded }
+                        let storage = SNMessagingKitConfiguration.shared.storage
+                        attachmentsToDownload.forEach { attachment in
+                            if let attachmentDownloadJob = storage.getAttachmentDownloadJob(for: attachment.uniqueId!, using: transaction) {
+                                attachmentDownloadJobs.append(attachmentDownloadJob)
+                            }
+                        }
                     case let unsendRequest as UnsendRequest:
                         MessageReceiver.handleUnsendRequest(unsendRequest, using: transaction)
                         return self.completeSilenty()
@@ -96,10 +106,16 @@ public final class NotificationServiceExtension : UNNotificationServiceExtension
                         notificationContent.body = "You've got a new message"
                     default: break
                     }
-                    self.handleSuccess(for: notificationContent)
                 } catch {
                     self.handleFailure(for: notificationContent)
                 }
+            }
+            self.notificationContent = notificationContent
+            if attachmentDownloadJobs.isEmpty {
+                self.handleSuccess(for: notificationContent)
+            } else {
+                let _ = when(resolved: attachmentDownloadJobs.map{ $0.getDownloadJobPromise() }).wait()
+                self.handleSuccess(for: notificationContent)
             }
         }
     }
@@ -144,12 +160,7 @@ public final class NotificationServiceExtension : UNNotificationServiceExtension
     override public func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
-        let userInfo: [String:Any] = [ NotificationServiceExtension.isFromRemoteKey : true ]
         let notificationContent = self.notificationContent!
-        notificationContent.userInfo = userInfo
-        notificationContent.badge = 1
-        notificationContent.title = "Session"
-        notificationContent.body = "You've got a new message"
         handleSuccess(for: notificationContent)
     }
     
