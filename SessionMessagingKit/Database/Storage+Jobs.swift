@@ -74,7 +74,7 @@ extension Storage {
     }
     
     public func getAttachmentDownloadJob(for attachmentID: String, using transaction: Any) -> AttachmentDownloadJob? {
-        guard let transaction = transaction as YapDatabaseReadTransaction else { return nil }
+        guard let transaction = transaction as? YapDatabaseReadTransaction else { return nil }
         var result: [AttachmentDownloadJob] = []
         transaction.enumerateRows(inCollection: AttachmentDownloadJob.collection) { _, object, _, _ in
             guard let job = object as? AttachmentDownloadJob, job.attachmentID == attachmentID else { return }
