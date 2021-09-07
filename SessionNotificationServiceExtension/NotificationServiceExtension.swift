@@ -35,7 +35,7 @@ public final class NotificationServiceExtension : UNNotificationServiceExtension
                 return self.handleFailure(for: notificationContent)
             }
             var attachmentDownloadJobs: [AttachmentDownloadJob] = []
-            Storage.write { transaction in // Intentionally capture self
+            Storage.writeSync { transaction in // Intentionally capture self
                 do {
                     let (message, proto) = try MessageReceiver.parse(envelopeAsData, openGroupMessageServerID: nil, using: transaction)
                     let senderPublicKey = message.sender!
@@ -71,7 +71,7 @@ public final class NotificationServiceExtension : UNNotificationServiceExtension
                         }
                         // Store the notification ID for unsend requests to later cancel this notification
                         tsIncomingMessage.setNotificationIdentifier(request.identifier, transaction: transaction)
-                        let attachments = visibleMessage.attachmentIDs.compactMap { TSAttachment.fetch(uniqueId: $0) as? TSAttachmentPointer }
+                        let attachments = visibleMessage.attachmentIDs.compactMap { TSAttachment.fetch(uniqueId: $0, transaction: transaction) as? TSAttachmentPointer }
                         let attachmentsToDownload = attachments.filter { !$0.isDownloaded }
                         let storage = SNMessagingKitConfiguration.shared.storage
                         attachmentsToDownload.forEach { attachment in
