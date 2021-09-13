@@ -56,4 +56,22 @@ extension AppDelegate {
         return AppMode(rawValue: mode) ?? .light
     }
     
+    @objc func addSkipBackupAttributeToDatabaseFiles() {
+        let primaryStorage = SSKEnvironment.shared.primaryStorage
+        let filePaths = [primaryStorage.databaseFilePath(),
+                         primaryStorage.databaseFilePath_SHM(),
+                         primaryStorage.databaseFilePath_WAL()]
+        filePaths.forEach{ filePath in
+            guard FileManager.default.fileExists(atPath: filePath) else { return }
+            var fileUrl = URL(fileURLWithPath: filePath)
+            do {
+                var resourceValues = URLResourceValues()
+                resourceValues.isExcludedFromBackup = true
+                try fileUrl.setResourceValues(resourceValues)
+            } catch {
+                print("Failed setting isExcludedFromBackup to \(filePath) due to: \(error)")
+            }
+        }
+    }
+    
 }

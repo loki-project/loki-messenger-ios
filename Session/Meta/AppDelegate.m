@@ -490,6 +490,9 @@ static NSTimeInterval launchStartedAt;
     [self preheatDatabaseViews];
 
     [self.primaryStorage touchDbAsync];
+    
+    //Skip database files cloud backup
+    [self addSkipBackupAttributeToDatabaseFiles];
 
     // Every time the user upgrades to a new version:
     //
