@@ -139,7 +139,11 @@ public class NotificationPresenter: NSObject, NotificationsProtocol {
         switch notification.object {
         case let incomingMessage as TSIncomingMessage:
             Logger.debug("canceled notification for message: \(incomingMessage)")
-            cancelNotifications(threadId: incomingMessage.uniqueThreadId)
+            if let identifier = incomingMessage.notificationIdentifier {
+                cancelNotification(identifier)
+            } else {
+                cancelNotifications(threadId: incomingMessage.uniqueThreadId)
+            }
         default:
             break
         }
@@ -174,12 +178,13 @@ public class NotificationPresenter: NSObject, NotificationsProtocol {
         }
 
         let context = Contact.context(for: thread)
-        let senderName = Storage.shared.getContact(with: incomingMessage.authorId)?.displayName(for: context) ?? incomingMessage.authorId
+        let senderName = Storage.shared.getContact(with: incomingMessage.authorId, using: transaction)?.displayName(for: context) ?? incomingMessage.authorId
 
         let notificationTitle: String?
+        let previewType = preferences.notificationPreviewType(with: transaction)
         switch previewType {
         case .noNameNoPreview:
-            notificationTitle = nil
+            notificationTitle = "Session"
         case .nameNoPreview, .namePreview:
             switch thread {
             case is TSContactThread:

@@ -26,6 +26,16 @@ class BaseVC : UIViewController {
         setNeedsStatusBarAppearanceUpdate()
         NotificationCenter.default.addObserver(self, selector: #selector(handleAppModeChangedNotification(_:)), name: .appModeChanged, object: nil)
     }
+    
+    internal func ensureWindowBackground() {
+        let appMode = AppModeManager.shared.currentAppMode
+        switch appMode {
+        case .light:
+            UIApplication.shared.delegate?.window??.backgroundColor = .white
+        case .dark:
+            UIApplication.shared.delegate?.window??.backgroundColor = .black
+        }
+    }
 
     internal func setUpGradientBackground() {
         hasGradient = true
@@ -36,10 +46,19 @@ class BaseVC : UIViewController {
 
     internal func setUpNavBarStyle() {
         guard let navigationBar = navigationController?.navigationBar else { return }
-        navigationBar.setBackgroundImage(UIImage(), for: UIBarMetrics.default)
-        navigationBar.shadowImage = UIImage()
-        navigationBar.isTranslucent = false
-        navigationBar.barTintColor = Colors.navigationBarBackground
+        if #available(iOS 15.0, *) {
+            let appearance = UINavigationBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = Colors.navigationBarBackground
+            appearance.shadowColor = .clear
+            navigationBar.standardAppearance = appearance;
+            navigationBar.scrollEdgeAppearance = navigationBar.standardAppearance
+        } else {
+            navigationBar.setBackgroundImage(UIImage(), for: UIBarMetrics.default)
+            navigationBar.shadowImage = UIImage()
+            navigationBar.isTranslucent = false
+            navigationBar.barTintColor = Colors.navigationBarBackground
+        }
     }
 
     internal func setNavBarTitle(_ title: String, customFontSize: CGFloat? = nil) {
@@ -71,12 +90,13 @@ class BaseVC : UIViewController {
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        // TODO: Post an appModeChanged notification?
+        NotificationCenter.default.post(name: .appModeChanged, object: nil)
     }
 
     @objc internal func handleAppModeChangedNotification(_ notification: Notification) {
         if hasGradient {
             setUpGradientBackground() // Re-do the gradient
         }
+        ensureWindowBackground()
     }
 }

@@ -1,3 +1,4 @@
+import UIKit
 
 final class SettingsVC : BaseVC, AvatarViewHelperDelegate {
     private var profilePictureToBeUploaded: UIImage?
@@ -78,6 +79,24 @@ final class SettingsVC : BaseVC, AvatarViewHelperDelegate {
         result.setTitleColor(Colors.text, for: UIControl.State.normal)
         result.titleLabel!.font = .boldSystemFont(ofSize: Values.smallFontSize)
         result.addTarget(self, action: #selector(openFAQ), for: UIControl.Event.touchUpInside)
+        return result
+    }()
+    
+    private lazy var surveyButton: UIButton = {
+        let result = UIButton()
+        result.setTitle(NSLocalizedString("vc_settings_survey_button_title", comment: ""), for: UIControl.State.normal)
+        result.setTitleColor(Colors.text, for: UIControl.State.normal)
+        result.titleLabel!.font = .boldSystemFont(ofSize: Values.smallFontSize)
+        result.addTarget(self, action: #selector(openSurvey), for: UIControl.Event.touchUpInside)
+        return result
+    }()
+    
+    private lazy var supportButton: UIButton = {
+        let result = UIButton()
+        result.setTitle(NSLocalizedString("vc_settings_support_button_title", comment: ""), for: UIControl.State.normal)
+        result.setTitleColor(Colors.text, for: UIControl.State.normal)
+        result.titleLabel!.font = .boldSystemFont(ofSize: Values.smallFontSize)
+        result.addTarget(self, action: #selector(shareLogs), for: UIControl.Event.touchUpInside)
         return result
     }()
     
@@ -178,7 +197,7 @@ final class SettingsVC : BaseVC, AvatarViewHelperDelegate {
         logoContainer.pin(.bottom, to: .bottom, of: logoImageView)
         logoImageView.centerXAnchor.constraint(equalTo: logoContainer.centerXAnchor, constant: -2).isActive = true
         // Main stack view
-        let stackView = UIStackView(arrangedSubviews: [ topStackView, settingButtonsStackView, inviteButton, faqButton, helpTranslateButton, logoContainer, versionLabel ])
+        let stackView = UIStackView(arrangedSubviews: [ topStackView, settingButtonsStackView, inviteButton, faqButton, surveyButton, supportButton, helpTranslateButton, logoContainer, versionLabel ])
         stackView.axis = .vertical
         stackView.spacing = Values.largeSpacing
         stackView.alignment = .fill
@@ -284,7 +303,12 @@ final class SettingsVC : BaseVC, AvatarViewHelperDelegate {
             closeButton.isAccessibilityElement = true
             navigationItem.leftBarButtonItem = closeButton
             if #available(iOS 13, *) { // Pre iOS 13 the user can't switch actively but the app still responds to system changes
-                let appModeIcon = isDarkMode ? #imageLiteral(resourceName: "ic_dark_theme_on").withTintColor(.white) : #imageLiteral(resourceName: "ic_dark_theme_off").withTintColor(.black)
+                let appModeIcon: UIImage
+                if isSystemDefault {
+                    appModeIcon = isDarkMode ? #imageLiteral(resourceName: "ic_theme_auto").withTintColor(.white) : #imageLiteral(resourceName: "ic_theme_auto").withTintColor(.black)
+                } else {
+                    appModeIcon = isDarkMode ? #imageLiteral(resourceName: "ic_dark_theme_on").withTintColor(.white) : #imageLiteral(resourceName: "ic_dark_theme_off").withTintColor(.black)
+                }
                 let appModeButton = UIButton()
                 appModeButton.setImage(appModeIcon, for: UIControl.State.normal)
                 appModeButton.tintColor = Colors.text
@@ -385,8 +409,26 @@ final class SettingsVC : BaseVC, AvatarViewHelperDelegate {
     }
 
     @objc private func switchAppMode() {
-        let newAppMode: AppMode = isLightMode ? .dark : .light
-        AppModeManager.shared.setCurrentAppMode(to: newAppMode)
+        let alertVC = UIAlertController.init(title: nil, message: nil, preferredStyle: .actionSheet)
+        let systemModeAction = UIAlertAction.init(title: NSLocalizedString("system_mode_theme", comment: ""), style: .default) { _ in
+            AppModeManager.shared.setAppModeToSystemDefault()
+        }
+        alertVC.addAction(systemModeAction)
+        
+        let darkModeAction = UIAlertAction.init(title: NSLocalizedString("dark_mode_theme", comment: ""), style: .default) { _ in
+            AppModeManager.shared.setCurrentAppMode(to: .dark)
+        }
+        alertVC.addAction(darkModeAction)
+        
+        let lightModeAction = UIAlertAction.init(title: NSLocalizedString("light_mode_theme", comment: ""), style: .default) { _ in
+            AppModeManager.shared.setCurrentAppMode(to: .light)
+        }
+        alertVC.addAction(lightModeAction)
+        
+        let cancelAction = UIAlertAction.init(title: NSLocalizedString("TXT_CANCEL_TITLE", comment: ""), style: .cancel) {_ in }
+        alertVC.addAction(cancelAction)
+        
+        self.presentAlert(alertVC)
     }
 
     @objc private func showQRCode() {
@@ -471,6 +513,18 @@ final class SettingsVC : BaseVC, AvatarViewHelperDelegate {
     @objc private func openFAQ() {
         let url = URL(string: "https://getsession.org/faq")!
         UIApplication.shared.open(url)
+    }
+    
+    @objc private func openSurvey() {
+        let url = URL(string: "https://getsession.org/survey")!
+        UIApplication.shared.open(url)
+    }
+    
+    @objc private func shareLogs() {
+        let shareLogsModal = ShareLogsModal()
+        shareLogsModal.modalPresentationStyle = .overFullScreen
+        shareLogsModal.modalTransitionStyle = .crossDissolve
+        present(shareLogsModal, animated: true, completion: nil)
     }
     
     @objc private func helpTranslate() {

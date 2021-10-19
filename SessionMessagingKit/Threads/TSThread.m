@@ -21,6 +21,7 @@ BOOL IsNoteToSelfEnabled(void)
 @interface TSThread ()
 
 @property (nonatomic) NSDate *creationDate;
+@property (nonatomic, nullable) NSDate *lastInteractionDate;
 @property (nonatomic, nullable) NSNumber *archivedAsOfMessageSortId;
 @property (nonatomic, copy, nullable) NSString *messageDraft;
 @property (atomic, nullable) NSDate *mutedUntilDate;
@@ -354,6 +355,11 @@ BOOL IsNoteToSelfEnabled(void)
 - (void)updateWithLastMessage:(TSInteraction *)lastMessage transaction:(YapDatabaseReadWriteTransaction *)transaction {
     if (![self.class shouldInteractionAppearInInbox:lastMessage]) {
         return;
+    }
+    
+    if ([_lastInteractionDate compare: lastMessage.receivedAtDate] == NSOrderedAscending) {
+        _lastInteractionDate = lastMessage.receivedAtDate;
+        [super saveWithTransaction:transaction];
     }
 
     if (!self.shouldBeVisible) {

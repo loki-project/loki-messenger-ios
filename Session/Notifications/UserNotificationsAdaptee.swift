@@ -108,15 +108,6 @@ extension UserNotificationPresenterAdaptee: NotificationPresenterAdaptee {
             cancelNotification(identifier: notificationIdentifier)
         }
 
-        let trigger: UNNotificationTrigger?
-        let checkForCancel = category == .incomingMessage
-        if checkForCancel {
-            assert(userInfo[AppNotificationUserInfoKey.threadId] != nil)
-            trigger = UNTimeIntervalNotificationTrigger(timeInterval: kNotificationDelayForRemoteRead, repeats: false)
-        } else {
-            trigger = nil
-        }
-
         if shouldPresentNotification(category: category, userInfo: userInfo) {
             if let displayableTitle = title?.filterForDisplay {
                 content.title = displayableTitle
@@ -129,7 +120,7 @@ extension UserNotificationPresenterAdaptee: NotificationPresenterAdaptee {
             Logger.debug("supressing notification body")
         }
 
-        let request = UNNotificationRequest(identifier: notificationIdentifier, content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: notificationIdentifier, content: content, trigger: nil)
 
         Logger.debug("presenting notification with identifier: \(notificationIdentifier)")
         notificationCenter.add(request)
@@ -249,16 +240,5 @@ public class UserNotificationActionHandler: NSObject {
         case .showThread:
             return try actionHandler.showThread(userInfo: userInfo)
         }
-    }
-}
-
-extension OWSSound {
-    
-    func notificationSound(isQuiet: Bool) -> UNNotificationSound {
-        guard let filename = OWSSounds.filename(for: self, quiet: isQuiet) else {
-            owsFailDebug("filename was unexpectedly nil")
-            return UNNotificationSound.default
-        }
-        return UNNotificationSound(named: UNNotificationSoundName(rawValue: filename))
     }
 }

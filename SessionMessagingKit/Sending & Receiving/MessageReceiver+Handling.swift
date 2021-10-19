@@ -145,7 +145,10 @@ extension MessageReceiver {
         guard let thread = threadOrNil else { return }
         let configuration = OWSDisappearingMessagesConfiguration(threadId: thread.uniqueId!, enabled: true, durationSeconds: duration)
         configuration.save(with: transaction)
-        let senderDisplayName = Storage.shared.getContact(with: senderPublicKey)?.displayName(for: .regular) ?? senderPublicKey
+        var senderDisplayName: String? = nil
+        if senderPublicKey != getUserHexEncodedPublicKey() {
+            senderDisplayName = Storage.shared.getContact(with: senderPublicKey)?.displayName(for: .regular) ?? senderPublicKey
+        }
         let message = OWSDisappearingConfigurationUpdateInfoMessage(timestamp: messageSentTimestamp, thread: thread,
             configuration: configuration, createdByRemoteName: senderDisplayName, createdInExistingGroup: false)
         message.save(with: transaction)
@@ -165,7 +168,10 @@ extension MessageReceiver {
         guard let thread = threadOrNil else { return }
         let configuration = OWSDisappearingMessagesConfiguration(threadId: thread.uniqueId!, enabled: false, durationSeconds: 24 * 60 * 60)
         configuration.save(with: transaction)
-        let senderDisplayName = Storage.shared.getContact(with: senderPublicKey)?.displayName(for: .regular) ?? senderPublicKey
+        var senderDisplayName: String? = nil
+        if senderPublicKey != getUserHexEncodedPublicKey() {
+            senderDisplayName = Storage.shared.getContact(with: senderPublicKey)?.displayName(for: .regular) ?? senderPublicKey
+        }
         let message = OWSDisappearingConfigurationUpdateInfoMessage(timestamp: messageSentTimestamp, thread: thread,
             configuration: configuration, createdByRemoteName: senderDisplayName, createdInExistingGroup: false)
         message.save(with: transaction)
@@ -183,8 +189,10 @@ extension MessageReceiver {
         let storage = SNMessagingKitConfiguration.shared.storage
         let transaction = transaction as! YapDatabaseReadWriteTransaction
         // Profile
+        var userProfileKey: OWSAES256Key? = nil
+        if let profileKey = message.profileKey { userProfileKey = OWSAES256Key(data: profileKey) }
         updateProfileIfNeeded(publicKey: userPublicKey, name: message.displayName, profilePictureURL: message.profilePictureURL,
-            profileKey: given(message.profileKey) { OWSAES256Key(data: $0)! }, sentTimestamp: message.sentTimestamp!, transaction: transaction)
+            profileKey: userProfileKey, sentTimestamp: message.sentTimestamp!, transaction: transaction)
         // Initial configuration sync
         if !UserDefaults.standard[.hasSyncedInitialConfiguration] {
             UserDefaults.standard[.hasSyncedInitialConfiguration] = true
@@ -193,7 +201,7 @@ extension MessageReceiver {
             for contactInfo in message.contacts {
                 let sessionID = contactInfo.publicKey!
                 let contact = Contact(sessionID: sessionID)
-                contact.profileEncryptionKey = given(contactInfo.profileKey) { OWSAES256Key(data: $0)! }
+                if let profileKey = contactInfo.profileKey { contact.profileEncryptionKey = OWSAES256Key(data: profileKey) }
                 contact.profilePictureURL = contactInfo.profilePictureURL
                 contact.name = contactInfo.displayName
                 Storage.shared.setContact(contact, using: transaction)
@@ -272,8 +280,10 @@ extension MessageReceiver {
         // Update profile if needed
         if let profile = message.profile {
             let sessionID = message.sender!
+            var contactProfileKey: OWSAES256Key? = nil
+            if let profileKey = profile.profileKey { contactProfileKey = OWSAES256Key(data: profileKey) }
             updateProfileIfNeeded(publicKey: sessionID, name: profile.displayName, profilePictureURL: profile.profilePictureURL,
-                profileKey: given(profile.profileKey) { OWSAES256Key(data: $0)! }, sentTimestamp: message.sentTimestamp!, transaction: transaction)
+                profileKey: contactProfileKey, sentTimestamp: message.sentTimestamp!, transaction: transaction)
         }
         // Get or create thread
         guard let threadID = storage.getOrCreateThread(for: message.syncTarget ?? message.sender!, groupPublicKey: message.groupPublicKey, openGroupID: openGroupID, using: transaction) else { throw Error.noThread }
@@ -317,6 +327,11 @@ extension MessageReceiver {
         if let serverID = message.openGroupServerMessageID, let tsMessage = TSMessage.fetch(uniqueId: tsMessageID, transaction: transaction) {
             tsMessage.openGroupServerMessageID = serverID
             tsMessage.save(with: transaction)
+        }
+        if let tsOutgoingMessage = TSMessage.fetch(uniqueId: tsMessageID, transaction: transaction) as? TSOutgoingMessage,
+            let thread = TSThread.fetch(uniqueId: threadID, transaction: transaction) {
+            // Mark previous messages as read if there is a sync message
+            OWSReadReceiptManager.shared().markAsReadLocally(beforeSortId: tsOutgoingMessage.sortId, thread: thread)
         }
         // Notify the user if needed
         guard (isMainAppAndActive || isBackgroundPoll), let tsIncomingMessage = TSMessage.fetch(uniqueId: tsMessageID, transaction: transaction) as? TSIncomingMessage,
