@@ -10,11 +10,13 @@ public final class OpenGroupManagerV2 : NSObject {
     @objc public static let shared = OpenGroupManagerV2()
     
     // MARK: Error
-    public enum Error : LocalizedError {
+    private enum Error : LocalizedError {
         case blocked
         
         public var errorDescription: String? {
-            return "Something went wrong."
+            switch self {
+            case .blocked: return "Something went wrong."
+            }
         }
     }
 
