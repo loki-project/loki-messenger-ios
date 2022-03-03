@@ -8,6 +8,15 @@ public final class OpenGroupManagerV2 : NSObject {
 
     // MARK: Initialization
     @objc public static let shared = OpenGroupManagerV2()
+    
+    // MARK: Error
+    public enum Error : LocalizedError {
+        case blocked
+        
+        public var errorDescription: String? {
+            return "Something went wrong."
+        }
+    }
 
     private override init() { }
 
@@ -110,15 +119,6 @@ public final class OpenGroupManagerV2 : NSObject {
     }
     
     // MARK: Block
-    private enum Error : LocalizedError {
-        case blocked
-
-        var localizedDescription: String {
-            switch self {
-            case .blocked: return "This open group is blocked."
-            }
-        }
-    }
     private var blocklist: [String] = {
         let path = Bundle.main.path(forResource: "blocklist", ofType: "txt")!
         let content = try! String(contentsOfFile: path)
