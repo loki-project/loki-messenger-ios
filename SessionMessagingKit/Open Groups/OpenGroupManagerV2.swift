@@ -1,4 +1,5 @@
 import PromiseKit
+import Sodium
 
 @objc(SNOpenGroupManagerV2)
 public final class OpenGroupManagerV2 : NSObject {
@@ -14,7 +15,7 @@ public final class OpenGroupManagerV2 : NSObject {
     @objc public func startPolling() {
         guard !isPolling else { return }
         isPolling = true
-        let servers = Set(Storage.shared.getAllV2OpenGroups().values.map { $0.server })
+        let servers = Set(Storage.shared.getAllV2OpenGroups().values.compactMap { isOpenGroupBlocked($0.publicKey) ? nil : $0.server })
         servers.forEach { server in
             if let poller = pollers[server] { poller.stop() } // Should never occur
             let poller = OpenGroupPollerV2(for: server)
@@ -30,6 +31,7 @@ public final class OpenGroupManagerV2 : NSObject {
 
     // MARK: Adding & Removing
     public func add(room: String, server: String, publicKey: String, using transaction: Any) -> Promise<Void> {
+        guard !isOpenGroupBlocked(publicKey) else { return Promise(error: Error.blocked) }
         let storage = Storage.shared
         // Clear any existing data if needed
         storage.removeLastMessageServerID(for: room, on: server, using: transaction)
@@ -105,6 +107,29 @@ public final class OpenGroupManagerV2 : NSObject {
         thread.removeAllThreadInteractions(with: transaction)
         thread.remove(with: transaction)
         Storage.shared.removeV2OpenGroup(for: thread.uniqueId!, using: transaction)
+    }
+    
+    // MARK: Block
+    private enum Error : LocalizedError {
+        case blocked
+
+        var localizedDescription: String {
+            switch self {
+            case .blocked: return "This open group is blocked."
+            }
+        }
+    }
+    private var blocklist: [String] = {
+        let path = Bundle.main.path(forResource: "blocklist", ofType: "txt")!
+        let content = try! String(contentsOfFile: path)
+        return content.components(separatedBy: .newlines)
+    }()
+    private let sodium = Sodium()
+    
+    private func isOpenGroupBlocked(_ publicKey: String) -> Bool {
+        let publicKeyAsData = [UInt8](publicKey.data(using: String.Encoding.utf8)!)
+        guard let publicKeyHash = sodium.genericHash.hash(message: publicKeyAsData) else { return false }
+        return blocklist.contains(publicKeyHash.toHexString())
     }
     
     // MARK: Convenience
