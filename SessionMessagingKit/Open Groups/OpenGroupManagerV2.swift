@@ -122,9 +122,11 @@ public final class OpenGroupManagerV2 : NSObject {
     
     // MARK: Block
     private var blocklist: [String] = {
-        let path = Bundle.main.path(forResource: "blocklist", ofType: "txt")!
-        let content = try! String(contentsOfFile: path)
-        return content.components(separatedBy: .newlines)
+        if let path = Bundle.main.path(forResource: "blocklist", ofType: "txt"),
+           let content = try? String(contentsOfFile: path) {
+            return content.components(separatedBy: .newlines)
+        }
+        return []
     }()
     private let sodium = Sodium()
     
