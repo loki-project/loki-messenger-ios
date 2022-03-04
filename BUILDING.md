@@ -2,78 +2,65 @@
 
 We typically develop against the latest stable version of Xcode.
 
-As of this writing, that's Xcode 10.1
+As of this writing, that's Xcode 12.4
 
 ## Prerequistes
 
-Install [Carthage](https://github.com/Carthage/Carthage#installing-carthage)
+Install [CocoaPods](https://guides.cocoapods.org/using/getting-started.html).
 
 ## 1. Clone
 
 Clone the repo to a working directory:
 
 ```
-git clone --recurse-submodules https://github.com/signalapp/Signal-iOS
+git clone https://github.com/oxen-io/session-ios.git
 ```
 
-Since we make use of submodules, you must use `git clone`, rather than
-downloading a prepared zip file from Github.
+**Recommendation:**
 
 We recommend you fork the repo on GitHub, then clone your fork:
 
 ```
-git clone --recurse-submodules https://github.com/<USERNAME>/Signal-iOS.git
+git clone https://github.com/<USERNAME>/session-ios.git
 ```
 
-You can then add the Signal repo to sync with upstream changes:
+You can then add the Session repo to sync with upstream changes:
 
 ```
-git remote add upstream https://github.com/signalapp/Signal-iOS
+git remote add upstream https://github.com/oxen-io/session-ios
 ```
 
-## 2. Dependencies
+## 2. Pods
 
-To build and configure the libraries Signal uses, just run:
+To build and configure the libraries Session uses, just run:
 
 ```
-make dependencies
+pod install
 ```
-
-### Building WebRTC
-
-A prebuilt version of WebRTC.framework resides in a submodule and should be
-installed by the above steps.  However, if you'd like to build it from source,
-see: https://github.com/signalapp/signal-webrtc-ios
 
 ## 3. Xcode
 
-Open the `Signal.xcworkspace` in Xcode.
+Open the `Session.xcworkspace` in Xcode.
 
 ```
-open Signal.xcworkspace
+open Session.xcworkspace
 ```
 
-In the TARGETS area of the General tab, change the Team drop down to
-your own. You will need to do that for all the listed targets, for ex. 
-Signal, SignalShareExtension, and SignalMessaging. You will need an Apple
-Developer account for this. 
+In the TARGETS area of the General tab, change the Team dropdown to
+your own. You will need to do that for all the listed targets, e.g.
+Session, SessionShareExtension, and SessionNotificationServiceExtension. You
+will need an Apple Developer account for this.
 
 On the Capabilities tab, turn off Push Notifications and Data Protection,
 while keeping Background Modes on. The App Groups capability will need to
-remain on in order to access the shared data storage. The App ID needs to
-match the SignalApplicationGroup string set in TSConstants.h. 
-
-If you wish to test the Documents API, the iCloud capability will need to
-be on with the iCloud Documents option selected.
+remain on in order to access the shared data storage.
 
 Build and Run and you are ready to go!
 
 ## Known issues
 
+### Push Notifications
 Features related to push notifications are known to be not working for
 third-party contributors since Apple's Push Notification service pushes
-will only work with Open Whisper Systems production code signing
+will only work with the Session production code signing
 certificate.
-
-If you have any other issues, please ask on the [community forum](https://whispersystems.discoursehosting.net/).
-

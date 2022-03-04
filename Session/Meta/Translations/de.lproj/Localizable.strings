@@ -1,0 +1,620 @@
+/* Label for the 'dismiss' button in the 'new app version available' alert. */
+"APP_UPDATE_NAG_ALERT_DISMISS_BUTTON" = "Jetzt nicht";
+/* Message format for the 'new app version available' alert. Embeds: {{The latest app version number}} */
+"APP_UPDATE_NAG_ALERT_MESSAGE_FORMAT" = "Version %@ ist nun im App Store verfügbar.";
+/* Title for the 'new app version available' alert. */
+"APP_UPDATE_NAG_ALERT_TITLE" = "Neue Version von Session verfügbar";
+/* Label for the 'update' button in the 'new app version available' alert. */
+"APP_UPDATE_NAG_ALERT_UPDATE_BUTTON" = "Aktualisieren";
+/* No comment provided by engineer. */
+"ATTACHMENT" = "Anhang";
+/* One-line label indicating the user can add no more text to the attachment caption. */
+"ATTACHMENT_APPROVAL_CAPTION_LENGTH_LIMIT_REACHED" = "Zeichen Limit erreicht.";
+/* placeholder text for an empty captioning field */
+"ATTACHMENT_APPROVAL_CAPTION_PLACEHOLDER" = "Bemerkung hinzufügen …";
+/* Title for 'caption' mode of the attachment approval view. */
+"ATTACHMENT_APPROVAL_CAPTION_TITLE" = "Beschriftung";
+/* Format string for file extension label in call interstitial view */
+"ATTACHMENT_APPROVAL_FILE_EXTENSION_FORMAT" = "Dateityp: %@";
+/* Format string for file size label in call interstitial view. Embeds: {{file size as 'N mb' or 'N kb'}}. */
+"ATTACHMENT_APPROVAL_FILE_SIZE_FORMAT" = "Größe: %@";
+/* One-line label indicating the user can add no more text to the media message field. */
+"ATTACHMENT_APPROVAL_MESSAGE_LENGTH_LIMIT_REACHED" = "Nachrichtenlimit erreicht.";
+/* Label for 'send' button in the 'attachment approval' dialog. */
+"ATTACHMENT_APPROVAL_SEND_BUTTON" = "Senden";
+/* Generic filename for an attachment with no known name */
+"ATTACHMENT_DEFAULT_FILENAME" = "Anhang";
+/* The title of the 'attachment error' alert. */
+"ATTACHMENT_ERROR_ALERT_TITLE" = "Fehler beim Senden des Anhangs";
+/* Attachment error message for image attachments which could not be converted to JPEG */
+"ATTACHMENT_ERROR_COULD_NOT_CONVERT_TO_JPEG" = "Bild kann nicht konvertiert werden.";
+/* Attachment error message for video attachments which could not be converted to MP4 */
+"ATTACHMENT_ERROR_COULD_NOT_CONVERT_TO_MP4" = "Video kann nicht verarbeitet werden.";
+/* Attachment error message for image attachments which cannot be parsed */
+"ATTACHMENT_ERROR_COULD_NOT_PARSE_IMAGE" = "Bild kann nicht geparst werden.";
+/* Attachment error message for image attachments in which metadata could not be removed */
+"ATTACHMENT_ERROR_COULD_NOT_REMOVE_METADATA" = "Metadaten können nicht aus dem Bild entfernt werden.";
+/* Attachment error message for image attachments which could not be resized */
+"ATTACHMENT_ERROR_COULD_NOT_RESIZE_IMAGE" = "Bildgröße kann nicht geändert werden.";
+/* Attachment error message for attachments whose data exceed file size limits */
+"ATTACHMENT_ERROR_FILE_SIZE_TOO_LARGE" = "Anhang ist zu groß.";
+/* Attachment error message for attachments with invalid data */
+"ATTACHMENT_ERROR_INVALID_DATA" = "Anhang besitzt ungültigen Inhalt.";
+/* Attachment error message for attachments with an invalid file format */
+"ATTACHMENT_ERROR_INVALID_FILE_FORMAT" = "Anhang besitzt ein ungültiges Dateiformat.";
+/* Attachment error message for attachments without any data */
+"ATTACHMENT_ERROR_MISSING_DATA" = "Anhang ist leer.";
+/* Alert title when picking a document fails for an unknown reason */
+"ATTACHMENT_PICKER_DOCUMENTS_FAILED_ALERT_TITLE" = "Auswählen des Dokuments gescheitert.";
+/* Alert body when picking a document fails because user picked a directory/bundle */
+"ATTACHMENT_PICKER_DOCUMENTS_PICKED_DIRECTORY_FAILED_ALERT_BODY" = "Bitte erstelle ein komprimiertes Archiv von dieser Datei oder diesem Ordner und versuche stattdessen dieses zu versenden.";
+/* Alert title when picking a document fails because user picked a directory/bundle */
+"ATTACHMENT_PICKER_DOCUMENTS_PICKED_DIRECTORY_FAILED_ALERT_TITLE" = "Datei nicht unterstützt";
+/* Short text label for a voice message attachment, used for thread preview and on the lock screen */
+"ATTACHMENT_TYPE_VOICE_MESSAGE" = "Sprachnachricht";
+/* Error indicating the backup export could not export the user's data. */
+"BACKUP_EXPORT_ERROR_COULD_NOT_EXPORT" = "Sicherungsdaten konnten nicht exportiert werden.";
+/* Error indicating that the app received an invalid response from CloudKit. */
+"BACKUP_EXPORT_ERROR_INVALID_CLOUDKIT_RESPONSE" = "Ungültige Dienstantwort";
+/* Indicates that the cloud is being cleaned up. */
+"BACKUP_EXPORT_PHASE_CLEAN_UP" = "Sicherung wird bereinigt";
+/* Indicates that the backup export is being configured. */
+"BACKUP_EXPORT_PHASE_CONFIGURATION" = "Sicherung wird vorbereitet";
+/* Indicates that the database data is being exported. */
+"BACKUP_EXPORT_PHASE_DATABASE_EXPORT" = "Daten werden exportiert";
+/* Indicates that the backup export data is being exported. */
+"BACKUP_EXPORT_PHASE_EXPORT" = "Sicherung wird exportiert";
+/* Indicates that the backup export data is being uploaded. */
+"BACKUP_EXPORT_PHASE_UPLOAD" = "Sicherung wird hochgeladen";
+/* Error indicating the backup import could not import the user's data. */
+"BACKUP_IMPORT_ERROR_COULD_NOT_IMPORT" = "Sicherung konnte nicht importiert werden.";
+/* Indicates that the backup import is being configured. */
+"BACKUP_IMPORT_PHASE_CONFIGURATION" = "Sicherung wird konfiguriert";
+/* Indicates that the backup import data is being downloaded. */
+"BACKUP_IMPORT_PHASE_DOWNLOAD" = "Sicherungsdaten werden heruntergeladen";
+/* Indicates that the backup import data is being finalized. */
+"BACKUP_IMPORT_PHASE_FINALIZING" = "Sicherung wird abgeschlossen";
+/* Indicates that the backup import data is being imported. */
+"BACKUP_IMPORT_PHASE_IMPORT" = "Sicherung wird importiert";
+/* Indicates that the backup database is being restored. */
+"BACKUP_IMPORT_PHASE_RESTORING_DATABASE" = "Datenbank wird wiederhergestellt";
+/* Indicates that the backup import data is being restored. */
+"BACKUP_IMPORT_PHASE_RESTORING_FILES" = "Dateien werden wiederhergestellt";
+/* Label for the backup restore decision section. */
+"BACKUP_RESTORE_DECISION_TITLE" = "Datensicherung verfügbar";
+/* Label for the backup restore description. */
+"BACKUP_RESTORE_DESCRIPTION" = "Datensicherung wiederherstellen";
+/* Label for the backup restore progress. */
+"BACKUP_RESTORE_PROGRESS" = "Fortschritt";
+/* Label for the backup restore status. */
+"BACKUP_RESTORE_STATUS" = "Status";
+/* Error shown when backup fails due to an unexpected error. */
+"BACKUP_UNEXPECTED_ERROR" = "Unerwarteter Fehler bei der Datensicherung";
+/* Button label for the 'block' button */
+"BLOCK_LIST_BLOCK_BUTTON" = "Blockieren";
+/* A format for the 'block user' action sheet title. Embeds {{the blocked user's name or phone number}}. */
+"BLOCK_LIST_BLOCK_USER_TITLE_FORMAT" = "%@ blockieren?";
+/* A format for the 'unblock conversation' action sheet title. Embeds the {{conversation title}}. */
+"BLOCK_LIST_UNBLOCK_TITLE_FORMAT" = "%@ freigeben?";
+/* Button label for the 'unblock' button */
+"BLOCK_LIST_UNBLOCK_BUTTON" = "Freigeben";
+/* The message format of the 'conversation blocked' alert. Embeds the {{conversation title}}. */
+"BLOCK_LIST_VIEW_BLOCKED_ALERT_MESSAGE_FORMAT" = "%@ wurde blockiert.";
+/* The title of the 'user blocked' alert. */
+"BLOCK_LIST_VIEW_BLOCKED_ALERT_TITLE" = "Benutzer blockiert";
+/* Alert title after unblocking a group or 1:1 chat. Embeds the {{conversation title}}. */
+"BLOCK_LIST_VIEW_UNBLOCKED_ALERT_TITLE_FORMAT" = "%@ wurde freigegeben.";
+/* Alert body after unblocking a group. */
+"BLOCK_LIST_VIEW_UNBLOCKED_GROUP_ALERT_BODY" = "Vorhandene Mitglieder können dich jetzt wieder zur Gruppe hinzufügen.";
+/* An explanation of the consequences of blocking another user. */
+"BLOCK_USER_BEHAVIOR_EXPLANATION" = "Blockierte Benutzer können dich nicht mehr anrufen oder dir Nachrichten senden.";
+/* Label for generic done button. */
+"BUTTON_DONE" = "Fertig";
+/* Button text to enable batch selection mode */
+"BUTTON_SELECT" = "Auswählen";
+/* The label for the 'do not restore backup' button. */
+"CHECK_FOR_BACKUP_DO_NOT_RESTORE" = "Nicht wiederherstellen";
+/* The label for the 'restore backup' button. */
+"CHECK_FOR_BACKUP_RESTORE" = "Wiederherstellen";
+/* Error indicating that the app could not determine that user's iCloud account status */
+"CLOUDKIT_STATUS_COULD_NOT_DETERMINE" = "Session konnte den Status deines iCloud-Kontos nicht ermitteln. Melde dich in der iOS-App »Einstellungen« bei deinem iCloud-Konto an, um deine Session-Daten zu sichern.";
+/* Error indicating that user does not have an iCloud account. */
+"CLOUDKIT_STATUS_NO_ACCOUNT" = "Kein iCloud-Konto. Melde dich auf deinem Handy bei »Einstellungen« mit deinem iCloud-Konto an, um deine Session-Daten zu sichern.";
+/* Error indicating that the app was prevented from accessing the user's iCloud account. */
+"CLOUDKIT_STATUS_RESTRICTED" = "Session wurde der Zugriff auf Datensicherungen bei deinem iCloud-Konto verwehrt. Gewähre Session in der iOS-App »Einstellungen« Zugriff auf dein iCloud-Konto, um deine Session-Daten zu sichern.";
+/* Alert body */
+"CONFIRM_LEAVE_GROUP_DESCRIPTION" = "Du wirst in dieser Gruppe keine Nachrichten mehr versenden oder empfangen können.";
+/* Alert title */
+"CONFIRM_LEAVE_GROUP_TITLE" = "Wollen Sie die Gruppe wirklich verlassen?";
+/* Message for the 'conversation delete confirmation' alert. */
+"CONVERSATION_DELETE_CONFIRMATION_ALERT_MESSAGE" = "Dies kann nicht rückgängig gemacht werden.";
+/* Title for the 'conversation delete confirmation' alert. */
+"CONVERSATION_DELETE_CONFIRMATION_ALERT_TITLE" = "Unterhaltung löschen?";
+/* keyboard toolbar label when no messages match the search string */
+"CONVERSATION_SEARCH_NO_RESULTS" = "Keine Treffer";
+/* keyboard toolbar label when exactly 1 message matches the search string */
+"CONVERSATION_SEARCH_ONE_RESULT" = "1 Treffer";
+/* keyboard toolbar label when more than 1 message matches the search string. Embeds {{number/position of the 'currently viewed' result}} and the {{total number of results}} */
+"CONVERSATION_SEARCH_RESULTS_FORMAT" = "%d von %d Treffern";
+/* title for conversation settings screen */
+"CONVERSATION_SETTINGS" = "Unterhaltungseinstellungen";
+/* table cell label in conversation settings */
+"CONVERSATION_SETTINGS_BLOCK_THIS_USER" = "Diesen Nutzer blockieren";
+/* Title of the 'mute this thread' action sheet. */
+"CONVERSATION_SETTINGS_MUTE_ACTION_SHEET_TITLE" = "Stummschalten";
+/* label for 'mute thread' cell in conversation settings */
+"CONVERSATION_SETTINGS_MUTE_LABEL" = "Stummschalten";
+/* Indicates that the current thread is not muted. */
+"CONVERSATION_SETTINGS_MUTE_NOT_MUTED" = "Nicht stummgeschaltet";
+/* Label for button to mute a thread for a day. */
+"CONVERSATION_SETTINGS_MUTE_ONE_DAY_ACTION" = "Für einen Tag stummschalten";
+/* Label for button to mute a thread for a hour. */
+"CONVERSATION_SETTINGS_MUTE_ONE_HOUR_ACTION" = "Für eine Stunde stummschalten";
+/* Label for button to mute a thread for a minute. */
+"CONVERSATION_SETTINGS_MUTE_ONE_MINUTE_ACTION" = "Für eine Minute stummschalten";
+/* Label for button to mute a thread for a week. */
+"CONVERSATION_SETTINGS_MUTE_ONE_WEEK_ACTION" = "Für eine Woche stummschalten";
+/* Label for button to mute a thread for a year. */
+"CONVERSATION_SETTINGS_MUTE_ONE_YEAR_ACTION" = "Für ein Jahr stummschalten";
+/* Indicates that this thread is muted until a given date or time. Embeds {{The date or time which the thread is muted until}}. */
+"CONVERSATION_SETTINGS_MUTED_UNTIL_FORMAT" = "bis %@";
+/* Table cell label in conversation settings which returns the user to the conversation with 'search mode' activated */
+"CONVERSATION_SETTINGS_SEARCH" = "Unterhaltung durchsuchen";
+/* Label for button to unmute a thread. */
+"CONVERSATION_SETTINGS_UNMUTE_ACTION" = "Stummschaltung aufheben";
+/* Title for the 'crop/scale image' dialog. */
+"CROP_SCALE_IMAGE_VIEW_TITLE" = "Verschieben und Skalieren";
+/* Subtitle shown while the app is updating its database. */
+"DATABASE_VIEW_OVERLAY_SUBTITLE" = "Dies kann einige Minuten dauern.";
+/* Title shown while the app is updating its database. */
+"DATABASE_VIEW_OVERLAY_TITLE" = "Datenbankoptimierung";
+/* Format string for a relative time, expressed as a certain number of hours in the past. Embeds {{The number of hours}}. */
+"DATE_HOURS_AGO_FORMAT" = "Vor %@ h";
+/* Format string for a relative time, expressed as a certain number of minutes in the past. Embeds {{The number of minutes}}. */
+"DATE_MINUTES_AGO_FORMAT" = "Vor %@ min";
+/* The present; the current time. */
+"DATE_NOW" = "Jetzt";
+/* The current day. */
+"DATE_TODAY" = "Heute";
+/* The day before today. */
+"DATE_YESTERDAY" = "Gestern";
+/* table cell label in conversation settings */
+"DISAPPEARING_MESSAGES" = "Verschwindende Nachrichten";
+/* Info Message when added to a group which has enabled disappearing messages. Embeds {{time amount}} before messages disappear, see the *_TIME_AMOUNT strings for context. */
+"DISAPPEARING_MESSAGES_CONFIGURATION_GROUP_EXISTING_FORMAT" = "Nachrichten in dieser Unterhaltung werden nach %@ automatisch gelöscht.";
+/* table cell label in conversation settings */
+"EDIT_GROUP_ACTION" = "Gruppe bearbeiten";
+/* Label indicating media gallery is empty */
+"GALLERY_TILES_EMPTY_GALLERY" = "Diese Unterhaltung enthält keine Medieninhalte.";
+/* Label indicating loading is in progress */
+"GALLERY_TILES_LOADING_MORE_RECENT_LABEL" = "Neuere Medieninhalte werden geladen …";
+/* Label indicating loading is in progress */
+"GALLERY_TILES_LOADING_OLDER_LABEL" = "Ältere Medieninhalte werden geladen …";
+/* Error displayed when there is a failure fetching a GIF from the remote service. */
+"GIF_PICKER_ERROR_FETCH_FAILURE" = "Abruf des angeforderten GIFs gescheitert. Bitte überprüfe, ob du online bist.";
+/* Generic error displayed when picking a GIF */
+"GIF_PICKER_ERROR_GENERIC" = "Ein unbekannter Fehler ist aufgetreten.";
+/* Shown when selected GIF couldn't be fetched */
+"GIF_PICKER_FAILURE_ALERT_TITLE" = "GIF kann nicht abgerufen werden";
+/* Alert message shown when user tries to search for GIFs without entering any search terms. */
+"GIF_PICKER_VIEW_MISSING_QUERY" = "Bitte gib deine Suche ein.";
+/* Indicates that an error occurred while searching. */
+"GIF_VIEW_SEARCH_ERROR" = "Fehler. Für erneuten Versuch antippen.";
+/* Indicates that the user's search had no results. */
+"GIF_VIEW_SEARCH_NO_RESULTS" = "Keine Ergebnisse.";
+/* No comment provided by engineer. */
+"GROUP_CREATED" = "Gruppe erstellt.";
+/* No comment provided by engineer. */
+"GROUP_MEMBER_JOINED" = " %@ ist der Gruppe beigetreten.";
+/* No comment provided by engineer. */
+"GROUP_MEMBER_LEFT" = "%@ hat die Gruppe verlassen.";
+/* No comment provided by engineer. */
+"GROUP_MEMBER_REMOVED" = " %@ wurde aus der Gruppe entfernt. ";
+/* No comment provided by engineer. */
+"GROUP_MEMBERS_REMOVED" = " %@ wurden aus der Gruppe entfernt. ";
+/* No comment provided by engineer. */
+"GROUP_TITLE_CHANGED" = "Gruppenname lautet jetzt »%@«. ";
+/* No comment provided by engineer. */
+"GROUP_UPDATED" = "Gruppe aktualisiert.";
+/* No comment provided by engineer. */
+"GROUP_YOU_LEFT" = "Du hast die Gruppe verlassen.";
+/* No comment provided by engineer. */
+"YOU_WERE_REMOVED" = " Du wurdest aus der Gruppe entfernt. ";
+/* Momentarily shown to the user when attempting to select more images than is allowed. Embeds {{max number of items}} that can be shared. */
+"IMAGE_PICKER_CAN_SELECT_NO_MORE_TOAST_FORMAT" = "Du kannst nicht mehr als %@ Elemente teilen.";
+/* alert title */
+"IMAGE_PICKER_FAILED_TO_PROCESS_ATTACHMENTS" = "Anhangsauswahl gescheitert.";
+/* Message for the alert indicating that an audio file is invalid. */
+"INVALID_AUDIO_FILE_ALERT_ERROR_MESSAGE" = "Ungültige Audiodatei.";
+/* Slider label when disappearing messages is off */
+"KEEP_MESSAGES_FOREVER" = "Nachrichten verschwinden nicht.";
+/* Confirmation button within contextual alert */
+"LEAVE_BUTTON_TITLE" = "Verlassen";
+/* table cell label in conversation settings */
+"LEAVE_GROUP_ACTION" = "Gruppe verlassen";
+/* Title for the 'long text message' view. */
+"LONG_TEXT_VIEW_TITLE" = "Nachricht";
+/* nav bar button item */
+"MEDIA_DETAIL_VIEW_ALL_MEDIA_BUTTON" = "Alle Medieninhalte";
+/* media picker option to choose from library */
+"MEDIA_FROM_LIBRARY_BUTTON" = "Fotogalerie";
+/* Confirmation button text to delete selected media from the gallery, embeds {{number of messages}} */
+"MEDIA_GALLERY_DELETE_MULTIPLE_MESSAGES_FORMAT" = "%d Nachrichten löschen";
+/* Confirmation button text to delete selected media message from the gallery */
+"MEDIA_GALLERY_DELETE_SINGLE_MESSAGE" = "Nachricht löschen";
+/* embeds {{sender name}} and {{sent datetime}}, e.g. 'Sarah on 10/30/18, 3:29' */
+"MEDIA_GALLERY_LANDSCAPE_TITLE_FORMAT" = "%@ am %@";
+/* Format for the 'more items' indicator for media galleries. Embeds {{the number of additional items}}. */
+"MEDIA_GALLERY_MORE_ITEMS_FORMAT" = "+%@";
+/* Short sender label for media sent by you */
+"MEDIA_GALLERY_SENDER_NAME_YOU" = "Du";
+/* Section header in media gallery collection view */
+"MEDIA_GALLERY_THIS_MONTH_HEADER" = "Diesen Monat";
+/* message status for message delivered to their recipient. */
+"MESSAGE_STATUS_DELIVERED" = "Zugestellt";
+/* status message for failed messages */
+"MESSAGE_STATUS_FAILED" = "Versand gescheitert.";
+/* status message for failed messages */
+"MESSAGE_STATUS_FAILED_SHORT" = "Gescheitert";
+/* status message for read messages */
+"MESSAGE_STATUS_READ" = "Gelesen";
+/* message status if message delivery to a recipient is skipped. We skip delivering group messages to users who have left the group or unregistered their Session account. */
+"MESSAGE_STATUS_RECIPIENT_SKIPPED" = "Ausgelassen";
+/* message status while message is sending. */
+"MESSAGE_STATUS_SENDING" = "Wird gesendet …";
+/* status message for sent messages */
+"MESSAGE_STATUS_SENT" = "Gesendet";
+/* status message while attachment is uploading */
+"MESSAGE_STATUS_UPLOADING" = "Wird hochgeladen …";
+/* Alert body when user has previously denied media library access */
+"MISSING_MEDIA_LIBRARY_PERMISSION_MESSAGE" = "Du kannst diese Berechtigung in der iOS-App »Einstellungen« aktivieren.";
+/* Alert title when user has previously denied media library access */
+"MISSING_MEDIA_LIBRARY_PERMISSION_TITLE" = "Session benötigt für diese Funktion Zugriff auf deine Fotos.";
+/* An explanation of the consequences of muting a thread. */
+"MUTE_BEHAVIOR_EXPLANATION" = "Du wirst keine Mitteilungen über stummgeschaltete Unterhaltungen erhalten.";
+/* notification title. Embeds {{author name}} and {{group name}} */
+"NEW_GROUP_MESSAGE_NOTIFICATION_TITLE" = "%@ an %@";
+/* Label for 1:1 conversation with yourself. */
+"NOTE_TO_SELF" = "Notiz an mich";
+/* Lock screen notification text presented after user powers on their device without unlocking. Embeds {{device model}} (either 'iPad' or 'iPhone') */
+"NOTIFICATION_BODY_PHONE_LOCKED_FORMAT" = "Du hast eventuell Nachrichten erhalten, während dein %@ neu gestartet wurde.";
+/* No comment provided by engineer. */
+"NOTIFICATIONS_FOOTER_WARNING" = "Aufgrund bekannter Programmfehler in Apples Push-Framework wird eine Nachrichtenvorschau nur dann angezeigt, wenn die Nachricht innerhalb von 30 Sekunden nach Versenden empfangen wird. Das Kennzeichensymbol der Anwendung kann daher ungenau sein.";
+/* Table cell switch label. When disabled, Session will not play notification sounds while the app is in the foreground. */
+"NOTIFICATIONS_SECTION_INAPP" = "Töne bei geöffneter App";
+/* Label for settings UI that allows user to change the notification sound. */
+"NOTIFICATIONS_SECTION_SOUNDS" = "Töne";
+/* No comment provided by engineer. */
+"NOTIFICATIONS_SENDER_AND_MESSAGE" = "Name und Inhalt";
+/* No comment provided by engineer. */
+"NOTIFICATIONS_SENDER_ONLY" = "Nur Name";
+/* No comment provided by engineer. */
+"NOTIFICATIONS_NONE" = "Kein Name oder Inhalt";
+/* No comment provided by engineer. */
+"NOTIFICATIONS_SHOW" = "Anzeigen";
+/* No comment provided by engineer. */
+"BUTTON_OK" = "Okay";
+/* Info Message when {{other user}} disables or doesn't support disappearing messages */
+"OTHER_DISABLED_DISAPPEARING_MESSAGES_CONFIGURATION" = "%@ hat verschwindende Nachrichten deaktiviert.";
+/* Info Message when {{other user}} updates message expiration to {{time amount}}, see the *_TIME_AMOUNT strings for context. */
+"OTHER_UPDATED_DISAPPEARING_MESSAGES_CONFIGURATION" = "%@ hat die Zeit für verschwindende Nachrichten auf %@ festgelegt.";
+/* alert title, generic error preventing user from capturing a photo */
+"PHOTO_CAPTURE_GENERIC_ERROR" = "Bild kann nicht aufgenommen werden.";
+/* alert title */
+"PHOTO_CAPTURE_UNABLE_TO_CAPTURE_IMAGE" = "Bild kann nicht aufgenommen werden.";
+/* alert title */
+"PHOTO_CAPTURE_UNABLE_TO_INITIALIZE_CAMERA" = "Konfigurieren der Kamera gescheitert.";
+/* label for system photo collections which have no name. */
+"PHOTO_PICKER_UNNAMED_COLLECTION" = "Unbenanntes Album";
+/* Notification action button title */
+"PUSH_MANAGER_MARKREAD" = "Markieren als gelesen";
+/* Notification action button title */
+"PUSH_MANAGER_REPLY" = "Antwort";
+/* alert body during registration */
+"REGISTRATION_ERROR_BLANK_VERIFICATION_CODE" = "Dein Konto kann nicht aktiviert werden, bevor du den dir gesendeten Code verifizierst.";
+/* Indicates a delay of zero seconds, and that 'screen lock activity' will timeout immediately. */
+"SCREEN_LOCK_ACTIVITY_TIMEOUT_NONE" = "Sofort";
+/* Description of how and why Session iOS uses Touch ID/Face ID/Phone Passcode to unlock 'screen lock'. */
+"SCREEN_LOCK_REASON_UNLOCK_SCREEN_LOCK" = "Authentifizieren, um Session zu öffnen.";
+/* Title for alert indicating that screen lock could not be unlocked. */
+"SCREEN_LOCK_UNLOCK_FAILED" = "Authentifizierung gescheitert";
+/* alert title when user attempts to leave the send media flow when they have an in-progress album */
+"SEND_MEDIA_ABANDON_TITLE" = "Medieninhalte verwerfen?";
+/* alert action, confirming the user wants to exit the media flow and abandon any photos they've taken */
+"SEND_MEDIA_CONFIRM_ABANDON_ALBUM" = "Medieninhalte verwerfen";
+/* alert action when the user decides not to cancel the media flow after all. */
+"SEND_MEDIA_RETURN_TO_CAMERA" = "Zurück zur Kamera";
+/* alert action when the user decides not to cancel the media flow after all. */
+"SEND_MEDIA_RETURN_TO_MEDIA_LIBRARY" = "Zurück zur Mediengalerie";
+/* Format string for the default 'Note' sound. Embeds the system {{sound name}}. */
+"SETTINGS_AUDIO_DEFAULT_TONE_LABEL_FORMAT" = "%@ (Standard)";
+/* Label for the backup view in app settings. */
+"SETTINGS_BACKUP" = "Sicherung";
+/* Label for 'backup now' button in the backup settings view. */
+"SETTINGS_BACKUP_BACKUP_NOW" = "Jetzt sichern";
+/* Label for 'cancel backup' button in the backup settings view. */
+"SETTINGS_BACKUP_CANCEL_BACKUP" = "Sicherung abbrechen";
+/* Label for switch in settings that controls whether or not backup is enabled. */
+"SETTINGS_BACKUP_ENABLING_SWITCH" = "Sicherung aktiviert";
+/* Label for iCloud status row in the in the backup settings view. */
+"SETTINGS_BACKUP_ICLOUD_STATUS" = "iCloud-Status";
+/* Indicates that the last backup restore failed. */
+"SETTINGS_BACKUP_IMPORT_STATUS_FAILED" = "Wiederherstellen der Sicherung gescheitert";
+/* Indicates that app is not restoring up. */
+"SETTINGS_BACKUP_IMPORT_STATUS_IDLE" = "Wiederherstellen der Sicherung inaktiv";
+/* Indicates that app is restoring up. */
+"SETTINGS_BACKUP_IMPORT_STATUS_IN_PROGRESS" = "Wiederherstellen der Sicherung läuft";
+/* Indicates that the last backup restore succeeded. */
+"SETTINGS_BACKUP_IMPORT_STATUS_SUCCEEDED" = "Wiederherstellen der Sicherung erfolgreich";
+/* Label for phase row in the in the backup settings view. */
+"SETTINGS_BACKUP_PHASE" = "Schritt";
+/* Label for phase row in the in the backup settings view. */
+"SETTINGS_BACKUP_PROGRESS" = "Fortschritt";
+/* Label for backup status row in the in the backup settings view. */
+"SETTINGS_BACKUP_STATUS" = "Status";
+/* Indicates that the last backup failed. */
+"SETTINGS_BACKUP_STATUS_FAILED" = "Sicherung gescheitert";
+/* Indicates that app is not backing up. */
+"SETTINGS_BACKUP_STATUS_IDLE" = "In Wartezustand";
+/* Indicates that app is backing up. */
+"SETTINGS_BACKUP_STATUS_IN_PROGRESS" = "Sicherung wird erstellt";
+/* Indicates that the last backup succeeded. */
+"SETTINGS_BACKUP_STATUS_SUCCEEDED" = "Sicherung erfolgreich";
+/* No comment provided by engineer. */
+"SETTINGS_CLEAR_HISTORY" = "Unterhaltungsverlauf löschen";
+/* Confirmation text for button which deletes all message, calling, attachments, etc. */
+"SETTINGS_DELETE_HISTORYLOG_CONFIRMATION_BUTTON" = "Alles löschen";
+/* Section header */
+"SETTINGS_HISTORYLOG_TITLE" = "Unterhaltungsverlauf löschen";
+/* Label for settings view that allows user to change the notification sound. */
+"SETTINGS_ITEM_NOTIFICATION_SOUND" = "Nachrichtenton";
+/* Setting for enabling & disabling link previews. */
+"SETTINGS_LINK_PREVIEWS" = "Link-Vorschauen senden";
+/* Footer for setting for enabling & disabling link previews. */
+"SETTINGS_LINK_PREVIEWS_FOOTER" = "Linkvorschau ist verfügbar für Imgur, Instagram, Pinterest, Reddit, und YouTube Links.";
+/* Header for setting for enabling & disabling link previews. */
+"SETTINGS_LINK_PREVIEWS_HEADER" = "Link-Vorschauen";
+/* table section header */
+"SETTINGS_NOTIFICATION_CONTENT_TITLE" = "Mitteilungsinhalt";
+/* Label for the 'read receipts' setting. */
+"SETTINGS_READ_RECEIPT" = "Lesebestätigungen";
+/* An explanation of the 'read receipts' setting. */
+"SETTINGS_READ_RECEIPTS_SECTION_FOOTER" = "Sehen und teilen, wann Nachrichten gelesen wurden. Diese Funktion ist optional und betrifft alle Unterhaltungen.";
+/* Label for the 'screen lock activity timeout' setting of the privacy settings. */
+"SETTINGS_SCREEN_LOCK_ACTIVITY_TIMEOUT" = "Autom. Sperre bei Inaktivität";
+/* Title for the 'screen lock' section of the privacy settings. */
+"SETTINGS_SCREEN_LOCK_SECTION_TITLE" = "Bildschirmsperre";
+/* Label for the 'enable screen lock' switch of the privacy settings. */
+"SETTINGS_SCREEN_LOCK_SWITCH_LABEL" = "Bildschirmsperre";
+/* Header Label for the sounds section of settings views. */
+"SETTINGS_SECTION_SOUNDS" = "Töne";
+/* Section header */
+"SETTINGS_SECURITY_TITLE" = "Bildschirmschutz";
+/* Label for the 'typing indicators' setting. */
+"SETTINGS_TYPING_INDICATORS" = "Tipp-Indikatoren";
+/* Label for the 'no sound' option that allows users to disable sounds for notifications, etc. */
+"SOUNDS_NONE" = "Stumm";
+/* {{number of days}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{5 days}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_DAYS" = "%@ Tage";
+/* Label text below navbar button, embeds {{number of days}}. Must be very short, like 1 or 2 characters, The space is intentionally omitted between the text and the embedded duration so that we get, e.g. '5d' not '5 d'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_DAYS_SHORT_FORMAT" = "%@d";
+/* {{number of hours}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{5 hours}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_HOURS" = "%@ Stunden";
+/* Label text below navbar button, embeds {{number of hours}}. Must be very short, like 1 or 2 characters, The space is intentionally omitted between the text and the embedded duration so that we get, e.g. '5h' not '5 h'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_HOURS_SHORT_FORMAT" = "%@h";
+/* {{number of minutes}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{5 minutes}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_MINUTES" = "%@ Minuten";
+/* Label text below navbar button, embeds {{number of minutes}}. Must be very short, like 1 or 2 characters, The space is intentionally omitted between the text and the embedded duration so that we get, e.g. '5m' not '5 m'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_MINUTES_SHORT_FORMAT" = "%@min";
+/* {{number of seconds}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{5 seconds}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_SECONDS" = "%@ Sekunden";
+/* Label text below navbar button, embeds {{number of seconds}}. Must be very short, like 1 or 2 characters, The space is intentionally omitted between the text and the embedded duration so that we get, e.g. '5s' not '5 s'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_SECONDS_SHORT_FORMAT" = "%@s";
+/* {{1 day}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{1 day}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_SINGLE_DAY" = "%@ Tag";
+/* {{1 hour}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{1 hour}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_SINGLE_HOUR" = "%@ Stunde";
+/* {{1 minute}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{1 minute}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_SINGLE_MINUTE" = "%@ Minute";
+/* {{1 week}} embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{1 week}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_SINGLE_WEEK" = "%@ Woche";
+/* {{number of weeks}}, embedded in strings, e.g. 'Alice updated disappearing messages expiration to {{5 weeks}}'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_WEEKS" = "%@ Wochen";
+/* Label text below navbar button, embeds {{number of weeks}}. Must be very short, like 1 or 2 characters, The space is intentionally omitted between the text and the embedded duration so that we get, e.g. '5w' not '5 w'. See other *_TIME_AMOUNT strings */
+"TIME_AMOUNT_WEEKS_SHORT_FORMAT" = "%@w";
+/* Label for the cancel button in an alert or action sheet. */
+"TXT_CANCEL_TITLE" = "Abbrechen";
+/* No comment provided by engineer. */
+"TXT_DELETE_TITLE" = "Löschen";
+/* Filename for voice messages. */
+"VOICE_MESSAGE_FILE_NAME" = "Sprachnachricht";
+/* Message for the alert indicating the 'voice message' needs to be held to be held down to record. */
+"VOICE_MESSAGE_TOO_SHORT_ALERT_MESSAGE" = "Antippen und Halten zum Aufnehmen einer Sprachnachricht.";
+/* Title for the alert indicating the 'voice message' needs to be held to be held down to record. */
+"VOICE_MESSAGE_TOO_SHORT_ALERT_TITLE" = "Sprachnachricht";
+/* Info Message when you disable disappearing messages */
+"YOU_DISABLED_DISAPPEARING_MESSAGES_CONFIGURATION" = "Du hast verschwindende Nachrichten deaktiviert.";
+/* Info message embedding a {{time amount}}, see the *_TIME_AMOUNT strings for context. */
+"YOU_UPDATED_DISAPPEARING_MESSAGES_CONFIGURATION" = "Du hast die Zeit für verschwindende Nachrichten auf %@ festgelegt.";
+// MARK: - Session
+"continue_2" = "Fortsetzen";
+"copy" = "Kopieren";
+"invalid_url" = "Ungültige URL";
+"next" = "Weiter";
+"share" = "Teilen";
+"invalid_session_id" = "Ungültige Session ID";
+"cancel" = "Abbrechen";
+"your_session_id" = "Ihre Session ID";
+"vc_landing_title_2" = "Ihre Session beginnt hier...";
+"vc_landing_register_button_title" = "Session ID erstellen";
+"vc_landing_restore_button_title" = "Ihre Session fortsetzen";
+"vc_landing_link_button_title" = "Mit einem bestehenden Konto verlinken";
+"view_fake_chat_bubble_1" = "Was ist Session?";
+"view_fake_chat_bubble_2" = "Es ist eine dezentrale, verschlüsselte Messaging-App.";
+"view_fake_chat_bubble_3" = "Es werden also weder meine persönlichen Daten noch die Metadaten meiner Konversation erfasst? Wie funktioniert das?";
+"view_fake_chat_bubble_4" = "Mit einer Kombination fortschrittlicher anonyme Routing- und End-to-End-Verschlüsselungstechnologien.";
+"view_fake_chat_bubble_5" = "Freunde lassen Freunde keine kompromittierten Messenger verwenden. Herzlich Willkommen.";
+"vc_register_title" = "Das ist Ihre Session ID.";
+"vc_register_explanation" = "Ihre Session ID ist die eindeutige Adresse, unter der Personen Sie über Session kontaktieren können. Ihre Session ID ist nicht mit Ihrer realen Identität verbunden, völlig anonym und von Natur aus privat.";
+"vc_restore_title" = "Ihr Konto wiederherstellen";
+"vc_restore_explanation" = "Geben Sie den Wiederherstellungssatz ein, den Sie bei der Anmeldung zur Wiederherstellung Ihres Kontos erhalten haben.";
+"vc_restore_seed_text_field_hint" = "Ihr Wiederherstellungssatz";
+"vc_link_device_title" = "Gerät verbinden";
+"vc_link_device_scan_qr_code_tab_title" = "QR-Code scannen";
+"vc_display_name_title_2" = "Wählen Sie Ihren Anzeigenamen";
+"vc_display_name_explanation" = "Dies ist Ihr Name, wenn Sie Session verwenden. Es kann Ihr richtiger Name, ein Alias oder etwas andere sein.";
+"vc_display_name_text_field_hint" = "Geben Sie einen Anzeigenamen ein";
+"vc_display_name_display_name_missing_error" = "Bitte wählen Sie einen Anzeigenamen";
+"vc_display_name_display_name_too_long_error" = "Bitte wählen Sie einen kürzeren Anzeigenamen";
+"vc_pn_mode_recommended_option_tag" = "Empfohlen";
+"vc_pn_mode_no_option_picked_modal_title" = "Bitte wählen Sie eine Option aus.";
+"vc_home_empty_state_message" = "Sie haben noch keine Kontakte.";
+"vc_home_empty_state_button_title" = "Session starten";
+"vc_seed_title" = "Ihr Wiederherstellungssatz";
+"vc_seed_title_2" = "Das ist Ihr Wiederherstellungssatz.";
+"vc_seed_explanation" = "Ihr Wiederherstellungssatz ist der Hauptschlüssel für Ihre Session ID. Mit diesem Satz können Sie Ihre Session ID wiederherstellen, wenn Sie den Zugriff auf Ihr Gerät verlieren. Bewahren Sie Ihren Wiederherstellungssatz an einem sicheren Ort auf und geben Sie ihn an niemandem weiter.";
+"vc_seed_reveal_button_title" = "Zur Anzeige gedrückt halten";
+"view_seed_reminder_subtitle_1" = "Sichern Sie Ihr Konto, indem Sie Ihren Wiederherstellungssatz speichern";
+"view_seed_reminder_subtitle_2" = "Tippen und halten Sie die verborgenen Wörter, um Ihren Wiederherstellungssatz anzuzeigen, und speichern Sie ihn dann sicher, um Ihre Session ID zu sichern.";
+"view_seed_reminder_subtitle_3" = "Bewahren Sie Ihren Wiederherstellungssatz an einem sicheren Ort auf.";
+"vc_path_title" = "Pfad";
+"vc_path_explanation" = "Session verbirgt Ihre IP-Adresse, indem Ihre Nachrichten über mehrere Dienstknoten im dezentralen Session-Netzwerk weitergeleitet werden. Dies sind die Länder, durch die Ihre Verbindung derzeit weitergeleitet wird:";
+"vc_path_device_row_title" = "Sie";
+"vc_path_guard_node_row_title" = "Eingangsknoten";
+"vc_path_service_node_row_title" = "Dienstknoten";
+"vc_path_destination_row_title" = "Ziel";
+"vc_path_learn_more_button_title" = "Mehr erfahren";
+"vc_create_private_chat_title" = "Neue Session";
+"vc_create_private_chat_enter_session_id_tab_title" = "Session ID eingeben";
+"vc_create_private_chat_scan_qr_code_tab_title" = "QR-Code scannen";
+"vc_create_private_chat_scan_qr_code_explanation" = "Scannen Sie den QR-Code eines Benutzers, um eine Session zu starten. QR-Codes finden Sie, indem Sie in den Einstellungen auf das QR-Code-Symbol tippen.";
+"vc_enter_public_key_explanation" = "Benutzer können ihre Session ID freigeben, indem sie in ihren Einstellungen auf \"Session ID freigeben\" tippen oder ihren QR-Code freigeben.";
+"vc_scan_qr_code_camera_access_explanation" = "Session benötigt Kamerazugriff, um die QR-Codes scannen zu können.";
+"vc_scan_qr_code_grant_camera_access_button_title" = "Kamerazugriff gewähren";
+"vc_create_closed_group_title" = "Neue geschlossene Gruppe";
+"vc_create_closed_group_text_field_hint" = "Geben Sie einen Gruppennamen ein.";
+"vc_create_closed_group_empty_state_message" = "Sie haben noch keine Kontakte.";
+"vc_create_closed_group_empty_state_button_title" = "Session starten";
+"vc_create_closed_group_group_name_missing_error" = "Bitte geben Sie einen Gruppennamen ein.";
+"vc_create_closed_group_group_name_too_long_error" = "Bitte geben Sie einen kürzeren Gruppennamen ein.";
+"vc_create_closed_group_too_many_group_members_error" = "Eine geschlossene Gruppe kann maximal 100 Mitglieder haben.";
+"vc_join_public_chat_title" = "Offener Gruppe beitreten";
+"vc_join_public_chat_enter_group_url_tab_title" = "Gruppen-URL öffnen";
+"vc_join_public_chat_scan_qr_code_tab_title" = "QR-Code scannen";
+"vc_join_public_chat_scan_qr_code_explanation" = "Scannen Sie den QR-Code der offenen Gruppe, der Sie beitreten möchten.";
+"vc_enter_chat_url_text_field_hint" = "Geben Sie eine offene Gruppen-URL ein.";
+"vc_settings_title" = "Einstellungen";
+"vc_settings_display_name_text_field_hint" = "Geben Sie einen Anzeigenamen ein.";
+"vc_settings_display_name_missing_error" = "Bitte wählen Sie einen Anzeigenamen.";
+"vc_settings_display_name_too_long_error" = "Bitte wählen Sie einen kürzeren Anzeigenamen.";
+"vc_settings_privacy_button_title" = "Datenschutz";
+"vc_settings_notifications_button_title" = "Benachrichtigungen";
+"vc_settings_recovery_phrase_button_title" = "Wiederherstellungssatz";
+"vc_settings_clear_all_data_button_title" = "Daten löschen";
+"vc_notification_settings_title" = "Benachrichtigungen";
+"vc_privacy_settings_title" = "Datenschutz";
+"preferences_notifications_strategy_category_title" = "Benachrichtigungsstrategie";
+"modal_seed_title" = "Ihr Wiederherstellungssatz";
+"modal_seed_explanation" = "Das ist Ihr Wiederherstellungssatz. Damit können Sie Ihre Session ID wiederherstellen oder auf ein neues Gerät migrieren.";
+"modal_clear_all_data_title" = "Alle Daten löschen";
+"modal_clear_all_data_explanation" = "Dadurch werden Ihre Nachrichten, Sessions und Kontakte dauerhaft gelöscht.";
+"modal_clear_all_data_explanation_2" = "Möchtest du nur dieses Gerät löschen oder dein gesamtes Konto löschen?";
+"dialog_clear_all_data_deletion_failed_1" = "Data not deleted by 1 Service Node. Service Node ID: %@.";
+"dialog_clear_all_data_deletion_failed_2" = "Data not deleted by %@ Service Nodes. Service Node IDs: %@.";
+"modal_clear_all_data_device_only_button_title" = "Device Only";
+"modal_clear_all_data_entire_account_button_title" = "Entire Account";
+"vc_qr_code_title" = "QR-Code";
+"vc_qr_code_view_my_qr_code_tab_title" = "Meinen QR-Code anzeigen";
+"vc_qr_code_view_scan_qr_code_tab_title" = "QR-Code scannen";
+"vc_qr_code_view_scan_qr_code_explanation" = "Scannen Sie den QR-Code einer Person, um ein Gespräch mit ihr zu beginnen.";
+"vc_view_my_qr_code_explanation" = "Das ist Ihr QR-Code. Andere Benutzer können ihn scannen, um eine Session mit Ihnen zu starten.";
+// MARK: - Not Yet Translated
+"fast_mode_explanation" = "Du wirst zuverlässig und unmittelbar mit dem Push-Mitteilungsdienst von Apple über neue Nachrichten informiert.";
+"fast_mode" = "Schneller Modus";
+"slow_mode_explanation" = "Session sucht gelegentlich im Hintergrund nach neuen Nachrichten.";
+"slow_mode" = "Langsam Modus";
+"vc_pn_mode_title" = "Nachrichtenmitteilungen";
+"vc_notification_settings_notification_mode_title" = "Schnellen Modus benutzen";
+"vc_link_device_recovery_phrase_tab_title" = "Wiederherstellungsphrase";
+"vc_link_device_scan_qr_code_explanation" = "Gehe zu Einstellungen → Wiederherstellungsphrase auf deinem anderen Gerät um deinen QR-Code anzeigen zu lassen.";
+"vc_enter_recovery_phrase_title" = "Wiederherstellungsphrase";
+"vc_enter_recovery_phrase_explanation" = "Geben Sie zum Verknüpfen Ihres Geräts die Wiederherstellungsphrase ein, die Sie bei der Anmeldung erhalten haben.";
+"vc_enter_public_key_text_field_hint" = "Session-ID oder ONS-Name eingeben";
+"vc_home_title" = "Nachrichten";
+"admin_group_leave_warning" = "Da du der Ersteller dieser Gruppe bist, wird sie für alle gelöscht. Dies kann nicht rückgängig gemacht werden.";
+"vc_join_open_group_suggestions_title" = "Oder nehmen Sie an einer dieser Veranstaltungen teil...";
+"vc_settings_invite_a_friend_button_title" = "Freund einladen";
+"vc_settings_help_us_translate_button_title" = "Hilf uns, Session zu übersetzen";
+"copied" = "Kopiert";
+"vc_conversation_settings_copy_session_id_button_title" = "Session-ID kopieren";
+"vc_conversation_input_prompt" = "Nachricht";
+"vc_conversation_voice_message_cancel_message" = "Wischen um abzubrechen";
+"modal_download_attachment_title" = "%@ vertrauen?";
+"modal_download_attachment_explanation" = "Sind Sie sicher, dass Sie die von %@ gesendeten Medien herunterladen möchten?";
+"modal_download_button_title" = "Herunterladen";
+"modal_open_url_title" = "URL öffnen?";
+"modal_open_url_explanation" = "Möchten Sie %@ wirklich öffnen?";
+"modal_open_url_button_title" = "Öffnen";
+"modal_copy_url_button_title" = "Copy Link";
+"modal_blocked_title" = "%@ entsperren?";
+"modal_blocked_explanation" = "Sind Sie sicher, dass Sie %@ entsperren möchten?";
+"modal_blocked_button_title" = "Entsperren";
+"modal_link_previews_title" = "Link-Vorschau aktivieren?";
+"modal_link_previews_explanation" = "Das Aktivieren von Link-Vorschauen zeigt Vorschaubilder für URLs, die Sie senden und empfangen. Dies kann nützlich sein, aber Session muss verlinkte Webseiten kontaktieren, um Vorschaubilder zu generieren. Du kannst die Link-Vorschau in den Session-Einstellungen immer deaktivieren.";
+"modal_link_previews_button_title" = "Aktivieren";
+"modal_share_logs_title" = "Share Logs";
+"modal_share_logs_explanation" = "Would you like to export your application logs to be able to share for troubleshooting?";
+"vc_share_title" = "Mit Session teilen";
+"vc_share_loading_message" = "Anlagen werden vorbereitet...";
+"vc_share_sending_message" = "Wird gesendet ...";
+"vc_share_link_previews_unsecure" = "Preview not loaded for unsecure link";
+"vc_share_link_previews_error" = "Unable to load preview";
+"vc_share_link_previews_disabled_title" = "Link Previews Disabled";
+"vc_share_link_previews_disabled_explanation" = "Enabling link previews will show previews for URLs you share. This can be useful, but Session will need to contact linked websites to generate previews.\n\nYou can enable link previews in Session's settings.";
+"view_open_group_invitation_description" = "Gruppeneinladung öffnen";
+"vc_conversation_settings_invite_button_title" = "Mitglieder hinzufügen";
+"vc_settings_faq_button_title" = "FAQ";
+"vc_settings_survey_button_title" = "Feedback / Survey";
+"vc_settings_support_button_title" = "Debug Log";
+"modal_send_seed_title" = "Warning";
+"modal_send_seed_explanation" = "This is your recovery phrase. If you send it to someone they'll have full access to your account.";
+"modal_send_seed_send_button_title" = "Send";
+"vc_conversation_settings_notify_for_mentions_only_title" = "Notify for Mentions Only";
+"vc_conversation_settings_notify_for_mentions_only_explanation" = "When enabled, you'll only be notified for messages mentioning you.";
+"view_conversation_title_notify_for_mentions_only" = "Notifying for Mentions Only";
+"message_deleted" = "This message has been deleted";
+"delete_message_for_me" = "Delete just for me";
+"delete_message_for_everyone" = "Delete for everyone";
+"delete_message_for_me_and_recipient" = "Delete for me and %@";
+"context_menu_reply" = "Reply";
+"context_menu_save" = "Save";
+"context_menu_ban_user" = "Ban User";
+"context_menu_ban_and_delete_all" = "Ban and Delete All";
+"accessibility_expanding_attachments_button" = "Add attachments";
+"accessibility_gif_button" = "Gif";
+"accessibility_document_button" = "Document";
+"accessibility_library_button" = "Photo library";
+"accessibility_camera_button" = "Camera";
+"accessibility_main_button_collapse" = "Collapse attachment options";
+"DISMISS_BUTTON_TEXT" = "Dismiss";
+/* Button text which opens the settings app */
+"OPEN_SETTINGS_BUTTON" = "Settings";
+"APN_Message" = "You've got a new message";
+"system_mode_theme" = "System";
+"dark_mode_theme" = "Dark";
+"light_mode_theme" = "Light";
+"MESSAGE_REQUESTS_TITLE" = "Message Requests";
+"MESSAGE_REQUESTS_EMPTY_TEXT" = "No pending message requests";
+"MESSAGE_REQUESTS_CLEAR_ALL" = "Clear All";
+"MESSAGE_REQUESTS_CLEAR_ALL_CONFIRMATION_TITLE" = "Are you sure you want to clear all message requests?";
+"MESSAGE_REQUESTS_CLEAR_ALL_CONFIRMATION_ACTON" = "Clear";
+"MESSAGE_REQUESTS_DELETE_CONFIRMATION_ACTON" = "Are you sure you want to delete this message request?";
+"MESSAGE_REQUESTS_APPROVAL_ERROR_MESSAGE" = "An error occurred when trying to accept this message request";
+"MESSAGE_REQUESTS_INFO" = "Sending a message to this user will automatically accept their message request.";
+"MESSAGE_REQUESTS_ACCEPTED" = "Your message request has been accepted.";
+"MESSAGE_REQUESTS_NOTIFICATION" = "You have a new message request";
+"TXT_HIDE_TITLE" = "Hide";
+"TXT_DELETE_ACCEPT" = "Accept";
+"NEW_CONVERSATION_MENU_OPEN_GROUP" = "Open Group";
+"NEW_CONVERSATION_MENU_DIRECT_MESSAGE" = "Direct Message";
+"NEW_CONVERSATION_MENU_CLOSED_GROUP" = "Closed Group";

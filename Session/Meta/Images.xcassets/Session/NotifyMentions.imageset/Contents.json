@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "ic_notifications_mentions.pdf",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
