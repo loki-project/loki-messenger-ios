@@ -59,12 +59,7 @@ final class JoinOpenGroupVC : BaseVC, UIPageViewControllerDataSource, UIPageView
         // Tab bar
         view.addSubview(tabBar)
         tabBar.pin(.leading, to: .leading, of: view)
-        let tabBarInset: CGFloat
-        if #available(iOS 13, *) {
-            tabBarInset = navigationBar.height()
-        } else {
-            tabBarInset = 0
-        }
+        let tabBarInset: CGFloat = navigationBar.height()
         tabBar.pin(.top, to: .top, of: view, withInset: tabBarInset)
         view.pin(.trailing, to: .trailing, of: tabBar)
         // Page VC constraints
@@ -76,13 +71,7 @@ final class JoinOpenGroupVC : BaseVC, UIPageViewControllerDataSource, UIPageView
         view.pin(.bottom, to: .bottom, of: pageVCView)
         let screen = UIScreen.main.bounds
         pageVCView.set(.width, to: screen.width)
-        let height: CGFloat
-        if #available(iOS 13, *) {
-            height = navigationController!.view.bounds.height - navigationBar.height() - TabBar.snHeight
-        } else {
-            let statusBarHeight = UIApplication.shared.statusBarFrame.height
-            height = navigationController!.view.bounds.height - navigationBar.height() - TabBar.snHeight - statusBarHeight
-        }
+        let height: CGFloat = navigationController!.view.bounds.height - navigationBar.height() - TabBar.snHeight
         pageVCView.set(.height, to: height)
         enterURLVC.constrainHeight(to: height)
         scanQRCodePlaceholderVC.constrainHeight(to: height)

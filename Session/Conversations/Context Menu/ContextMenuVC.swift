@@ -90,6 +90,7 @@ final class ContextMenuVC : UIViewController {
         view.addSubview(menuView)
         let menuHeight = CGFloat(actionViews.count) * ContextMenuVC.actionViewHeight
         let spacing = Values.smallSpacing
+        // FIXME: Need to update this when an appropriate replacement is added (see https://teng.pub/technical/2021/11/9/uiapplication-key-window-replacement)
         let margin = max(UIApplication.shared.keyWindow!.safeAreaInsets.bottom, Values.mediumSpacing)
         if frame.maxY + spacing + menuHeight > UIScreen.main.bounds.height - margin {
             menuView.pin(.bottom, to: .top, of: snapshot, withInset: -spacing)

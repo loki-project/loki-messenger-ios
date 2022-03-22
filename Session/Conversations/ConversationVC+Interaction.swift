@@ -494,6 +494,7 @@ extension ConversationVC : InputViewDelegate, MessageCellDelegate, ContextMenuAc
             let snapshot = cell.bubbleView.snapshotView(afterScreenUpdates: false), contextMenuWindow == nil,
             !ContextMenuVC.actions(for: viewItem, delegate: self).isEmpty else { return }
         UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        // FIXME: Need to update this when an appropriate replacement is added (see https://teng.pub/technical/2021/11/9/uiapplication-key-window-replacement)
         let frame = cell.convert(cell.bubbleView.frame, to: UIApplication.shared.keyWindow!)
         let window = ContextMenuWindow()
         let contextMenuVC = ContextMenuVC(snapshot: snapshot, viewItem: viewItem, frame: frame, delegate: self) { [weak self] in

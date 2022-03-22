@@ -45,11 +45,6 @@ public class ConversationSearchController : NSObject {
         uiSearchController.searchResultsUpdater = self
 
         uiSearchController.hidesNavigationBarDuringPresentation = false
-        if #available(iOS 13, *) {
-            // Do nothing
-        } else {
-            uiSearchController.dimsBackgroundDuringPresentation = false
-        }
         uiSearchController.searchBar.inputAccessoryView = resultsBar
     }
 

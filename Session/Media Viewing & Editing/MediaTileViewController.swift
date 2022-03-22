@@ -408,10 +408,7 @@ public class MediaTileViewController: UICollectionViewController, MediaGalleryDa
     static let kInterItemSpacing: CGFloat = 2
     private class func buildLayout() -> MediaTileViewLayout {
         let layout = MediaTileViewLayout()
-
-        if #available(iOS 11, *) {
-            layout.sectionInsetReference = .fromSafeArea
-        }
+        layout.sectionInsetReference = .fromSafeArea
         layout.minimumInteritemSpacing = kInterItemSpacing
         layout.minimumLineSpacing = kInterItemSpacing
         layout.sectionHeadersPinToVisibleBounds = true
@@ -420,13 +417,7 @@ public class MediaTileViewController: UICollectionViewController, MediaGalleryDa
     }
 
     func updateLayout() {
-        let containerWidth: CGFloat
-        if #available(iOS 11.0, *) {
-            containerWidth = self.view.safeAreaLayoutGuide.layoutFrame.size.width
-        } else {
-            containerWidth = self.view.frame.size.width
-        }
-
+        let containerWidth: CGFloat = self.view.safeAreaLayoutGuide.layoutFrame.size.width
         let kItemsPerPortraitRow = 4
         let screenWidth = min(UIScreen.main.bounds.width, UIScreen.main.bounds.height)
         let approxItemWidth = screenWidth / CGFloat(kItemsPerPortraitRow)
@@ -813,11 +804,7 @@ private class MediaGallerySectionHeader: UICollectionReusableView {
         get {
             // HACK: scrollbar incorrectly appears *behind* section headers
             // in collection view on iOS11 =(
-            if #available(iOS 11, *) {
-                return AlwaysOnTopLayer.self
-            } else {
-                return super.layerClass
-            }
+            return AlwaysOnTopLayer.self
         }
     }
 

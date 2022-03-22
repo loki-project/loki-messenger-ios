@@ -397,8 +397,8 @@ extension VoiceMessageRecordingView {
 }
 
 // MARK: Delegate
-protocol VoiceMessageRecordingViewDelegate : class {
 
+protocol VoiceMessageRecordingViewDelegate: AnyObject {
     func startVoiceMessageRecording()
     func endVoiceMessageRecording()
     func cancelVoiceMessageRecording()

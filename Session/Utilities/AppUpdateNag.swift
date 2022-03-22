@@ -156,7 +156,7 @@ class AppUpdateNag: NSObject {
 
     func showAppStore(appStoreURL: URL) {
         Logger.debug("")
-        UIApplication.shared.openURL(appStoreURL)
+        UIApplication.shared.open(appStoreURL, options: [:], completionHandler: nil)
     }
 
     // MARK: Storage

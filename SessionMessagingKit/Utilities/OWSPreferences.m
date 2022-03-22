@@ -201,24 +201,12 @@ NSString *const OWSPreferencesKeySystemCallLogEnabled = @"OWSPreferencesKeySyste
 
 - (BOOL)isSystemCallLogEnabled
 {
-    if (@available(iOS 11, *)) {
-        // do nothing
-    } else {
-        return NO;
-    }
-
     NSNumber *preference = [self tryGetValueForKey:OWSPreferencesKeySystemCallLogEnabled];
     return preference ? preference.boolValue : YES;
 }
 
 - (void)setIsSystemCallLogEnabled:(BOOL)flag
 {
-    if (@available(iOS 11, *)) {
-        // do nothing
-    } else {
-        return;
-    }
-
     [self setValueForKey:OWSPreferencesKeySystemCallLogEnabled toValue:@(flag)];
 }
 
@@ -270,66 +258,30 @@ NSString *const OWSPreferencesKeySystemCallLogEnabled = @"OWSPreferencesKeySyste
 
 - (BOOL)isCallKitEnabled
 {
-    if (@available(iOS 11, *)) {
-        return YES;
-    }
-
-    NSNumber *preference = [self tryGetValueForKey:OWSPreferencesKeyCallKitEnabled];
-    return preference ? [preference boolValue] : YES;
+    return YES;
 }
 
 - (void)setIsCallKitEnabled:(BOOL)flag
 {
-    if (@available(iOS 11, *)) {
-        return;
-    }
-
-    [self setValueForKey:OWSPreferencesKeyCallKitEnabled toValue:@(flag)];
-    // Rev callUIAdaptee to get new setting
 }
 
 - (BOOL)isCallKitEnabledSet
 {
-    if (@available(iOS 11, *)) {
-        return NO;
-    }
-
-    NSNumber *preference = [self tryGetValueForKey:OWSPreferencesKeyCallKitEnabled];
-    return preference != nil;
+    return NO;
 }
 
 - (BOOL)isCallKitPrivacyEnabled
 {
-    if (@available(iOS 11, *)) {
-        return NO;
-    }
-
-    NSNumber *_Nullable preference = [self tryGetValueForKey:OWSPreferencesKeyCallKitPrivacyEnabled];
-    if (preference) {
-        return [preference boolValue];
-    } else {
-        // Private by default.
-        return YES;
-    }
+    return NO;
 }
 
 - (void)setIsCallKitPrivacyEnabled:(BOOL)flag
 {
-    if (@available(iOS 11, *)) {
-        return;
-    }
-
-    [self setValueForKey:OWSPreferencesKeyCallKitPrivacyEnabled toValue:@(flag)];
 }
 
 - (BOOL)isCallKitPrivacySet
 {
-    if (@available(iOS 11, *)) {
-        return NO;
-    }
-
-    NSNumber *preference = [self tryGetValueForKey:OWSPreferencesKeyCallKitPrivacyEnabled];
-    return preference != nil;
+    return NO;
 }
 
 #pragma mark direct call connectivity (non-TURN)

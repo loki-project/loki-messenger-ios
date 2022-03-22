@@ -411,7 +411,7 @@ final class InputView : UIView, InputViewButtonDelegate, InputTextViewDelegate, 
 }
 
 // MARK: Delegate
-protocol InputViewDelegate : AnyObject, ExpandingAttachmentsButtonDelegate, VoiceMessageRecordingViewDelegate {
+protocol InputViewDelegate: ExpandingAttachmentsButtonDelegate, VoiceMessageRecordingViewDelegate {
 
     func showLinkPreviewSuggestionModal()
     func handleSendButtonTapped()

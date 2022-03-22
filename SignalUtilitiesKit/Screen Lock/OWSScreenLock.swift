@@ -196,8 +196,7 @@ import LocalAuthentication
                 return .failure(error:defaultErrorDescription)
             }
 
-            if #available(iOS 11.0, *) {
-                switch laError.code {
+            switch laError.code {
                 case .biometryNotAvailable:
                     Logger.error("local authentication error: biometryNotAvailable.")
                     return .failure(error: NSLocalizedString("SCREEN_LOCK_ERROR_LOCAL_AUTHENTICATION_NOT_AVAILABLE",
@@ -213,7 +212,6 @@ import LocalAuthentication
                 default:
                     // Fall through to second switch
                     break
-                }
             }
 
             switch laError.code {
@@ -263,10 +261,7 @@ import LocalAuthentication
 
         // Never recycle biometric auth.
         context.touchIDAuthenticationAllowableReuseDuration = TimeInterval(0)
-
-        if #available(iOS 11.0, *) {
-            assert(!context.interactionNotAllowed)
-        }
+        assert(!context.interactionNotAllowed)
 
         return context
     }

@@ -207,11 +207,8 @@ import PromiseKit
 //            open var perRecordProgressBlock: ((CKRecord, Double) -> Void)?
 //            open var perRecordCompletionBlock: ((CKRecord, Error?) -> Void)?
 
-            // These APIs are only available in iOS 9.3 and later.
-            if #available(iOS 9.3, *) {
-                saveOperation.isLongLived = true
-                saveOperation.qualityOfService = .background
-            }
+            saveOperation.isLongLived = true
+            saveOperation.qualityOfService = .background
 
             database().add(saveOperation)
         }
@@ -665,11 +662,9 @@ import PromiseKit
                 return .failureDoNotRetry(error:error)
             }
 
-            if #available(iOS 11, *) {
-                if error.code == CKError.serverResponseLost {
-                    Logger.verbose("\(label) retry without delay.")
-                    return .failureRetryWithoutDelay
-                }
+            if error.code == CKError.serverResponseLost {
+                Logger.verbose("\(label) retry without delay.")
+                return .failureRetryWithoutDelay
             }
 
             switch error {
@@ -706,11 +701,6 @@ import PromiseKit
     }
 
     private class func cancelAllLongLivedOperations() {
-        // These APIs are only available in iOS 9.3 and later.
-        guard #available(iOS 9.3, *) else {
-            return
-        }
-
         let container = CKContainer.default()
         container.fetchAllLongLivedOperationIDs { (operationIds, error) in
             if let error = error {

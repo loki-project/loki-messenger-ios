@@ -197,13 +197,11 @@ static NSTimeInterval launchStartedAt;
     LKAppMode appMode = [LKAppModeManager getAppModeOrSystemDefault];
     [self adaptAppMode:appMode];
 
-    if (@available(iOS 11, *)) {
-        // This must happen in appDidFinishLaunching or earlier to ensure we don't
-        // miss notifications.
-        // Setting the delegate also seems to prevent us from getting the legacy notification
-        // notification callbacks upon launch e.g. 'didReceiveLocalNotification'
-        UNUserNotificationCenter.currentNotificationCenter.delegate = self;
-    }
+    // This must happen in appDidFinishLaunching or earlier to ensure we don't
+    // miss notifications.
+    // Setting the delegate also seems to prevent us from getting the legacy notification
+    // notification callbacks upon launch e.g. 'didReceiveLocalNotification'
+    UNUserNotificationCenter.currentNotificationCenter.delegate = self;
 
     [OWSScreenLockUI.sharedManager setupWithRootWindow:self.window];
     [[OWSWindowManager sharedManager] setupWithRootWindow:self.window
@@ -702,28 +700,23 @@ static NSTimeInterval launchStartedAt;
 
 - (void)adaptAppMode:(LKAppMode)appMode
 {
+    // FIXME: Need to update this when an appropriate replacement is added (see https://teng.pub/technical/2021/11/9/uiapplication-key-window-replacement)
     UIWindow *window = UIApplication.sharedApplication.keyWindow;
     if (window == nil) { return; }
     switch (appMode) {
         case LKAppModeLight: {
-            if (@available(iOS 13.0, *)) {
-                window.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
-            }
+            window.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
             window.backgroundColor = UIColor.whiteColor;
             break;
         }
         case LKAppModeDark: {
-            if (@available(iOS 13.0, *)) {
-                window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-            }
+            window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
             window.backgroundColor = UIColor.blackColor;
             break;
         }
     }
     if (LKAppModeUtilities.isSystemDefault) {
-        if (@available(iOS 13.0, *)) {
-            window.overrideUserInterfaceStyle = UIUserInterfaceStyleUnspecified;
-        }
+        window.overrideUserInterfaceStyle = UIUserInterfaceStyleUnspecified;
     }
     [NSNotificationCenter.defaultCenter postNotificationName:NSNotification.appModeChanged object:nil];
 }

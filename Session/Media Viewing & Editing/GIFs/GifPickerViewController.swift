@@ -9,7 +9,7 @@ import SignalUtilitiesKit
 import PromiseKit
 
 @objc
-protocol GifPickerViewControllerDelegate: class {
+protocol GifPickerViewControllerDelegate: AnyObject {
     func gifPickerDidSelect(attachment: SignalAttachment)
 }
 

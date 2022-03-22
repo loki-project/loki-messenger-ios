@@ -142,7 +142,7 @@ final class InputViewButton : UIView {
 }
 
 // MARK: Delegate
-protocol InputViewButtonDelegate : class {
+protocol InputViewButtonDelegate: AnyObject {
     
     func handleInputViewButtonTapped(_ inputViewButton: InputViewButton)
     func handleInputViewButtonLongPressBegan(_ inputViewButton: InputViewButton)

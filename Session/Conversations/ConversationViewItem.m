@@ -32,6 +32,8 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
             return @"OWSMessageCellType_MediaMessage";
         case OWSMessageCellType_OversizeTextDownloading:
             return @"OWSMessageCellType_OversizeTextDownloading";
+        case OWSMessageCellType_DeletedMessage:
+            return @"OWSMessageCellType_DeletedMessage";
     }
 }
 
@@ -745,6 +747,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
         case OWSMessageCellType_OversizeTextDownloading:
             OWSFailDebug(@"Can't copy not-yet-downloaded attachment");
             return;
+        
+        case OWSMessageCellType_DeletedMessage:
+            return;
     }
 }
 
@@ -777,6 +782,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
         }
         case OWSMessageCellType_OversizeTextDownloading:
             OWSFailDebug(@"Can't copy not-yet-downloaded attachment");
+            return;
+            
+        case OWSMessageCellType_DeletedMessage:
             return;
     }
 }
@@ -831,6 +839,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
         case OWSMessageCellType_OversizeTextDownloading:
             OWSFailDebug(@"Can't share not-yet-downloaded attachment");
             return;
+            
+        case OWSMessageCellType_DeletedMessage:
+            return;
     }
 }
 
@@ -857,6 +868,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
             return NO;
         }
         case OWSMessageCellType_OversizeTextDownloading:
+            return NO;
+            
+        case OWSMessageCellType_DeletedMessage:
             return NO;
     }
 }
@@ -897,6 +911,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
         }
         case OWSMessageCellType_OversizeTextDownloading:
             return NO;
+            
+        case OWSMessageCellType_DeletedMessage:
+            return NO;
     }
 }
 
@@ -921,6 +938,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
         }
         case OWSMessageCellType_OversizeTextDownloading:
             OWSFailDebug(@"Can't save not-yet-downloaded attachment");
+            return;
+            
+        case OWSMessageCellType_DeletedMessage:
             return;
     }
 }
@@ -1097,6 +1117,9 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
             return self.firstValidAlbumAttachment != nil;
         case OWSMessageCellType_OversizeTextDownloading:
             return NO;
+            
+        case OWSMessageCellType_DeletedMessage:
+            return NO;
     }
 }
 
@@ -1138,6 +1161,8 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
     } else {
         return YES;
     }
+    
+    return NO;
 }
 
 - (BOOL)userHasModerationPermission
@@ -1157,6 +1182,8 @@ NSString *NSStringForOWSMessageCellType(OWSMessageCellType cellType)
     if (openGroupV2 != nil) {
         return [SNOpenGroupAPIV2 isUserModerator:[SNGeneralUtilities getUserPublicKey] forRoom:openGroupV2.room onServer:openGroupV2.server];
     }
+    
+    return false;
 }
 
 @end

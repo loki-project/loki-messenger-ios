@@ -106,9 +106,7 @@ class BaseVC : UIViewController {
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        if #available(iOS 13.0, *) {
-            SNLog("Current trait collection: \(UITraitCollection.current), previous trait collection: \(previousTraitCollection)")
-        }
+        SNLog("Current trait collection: \(UITraitCollection.current), previous trait collection: \(String(describing: previousTraitCollection))")
         if LKAppModeUtilities.isSystemDefault {
              NotificationCenter.default.post(name: .appModeChanged, object: nil)
         }
