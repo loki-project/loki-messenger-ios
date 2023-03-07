@@ -524,7 +524,8 @@ class ImagePickerGridController: UICollectionViewController, PhotoLibraryDelegat
         let cell: PhotoGridViewCell = collectionView.dequeue(type: PhotoGridViewCell.self, for: indexPath)
         let assetItem = photoCollectionContents.assetItem(at: indexPath.item, photoMediaSize: photoMediaSize)
         cell.configure(item: assetItem)
-
+        cell.isAccessibilityElement = true
+        cell.accessibilityIdentifier = "\(assetItem.asset.modificationDate.map { "\($0)" } ?? "Unknown Date")"
         cell.isSelected = delegate.imagePicker(self, isAssetSelected: assetItem.asset)
 
         return cell
