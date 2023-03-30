@@ -103,7 +103,8 @@ class MessageRequestsViewController: BaseVC, UITableViewDelegate, UITableViewDat
         result.translatesAutoresizingMaskIntoConstraints = false
         result.setTitle("MESSAGE_REQUESTS_CLEAR_ALL".localized(), for: .normal)
         result.addTarget(self, action: #selector(clearAllTapped), for: .touchUpInside)
-
+        result.accessibilityIdentifier = "Clear all"
+        result.isAccessibilityElement = true
         return result
     }()
 
