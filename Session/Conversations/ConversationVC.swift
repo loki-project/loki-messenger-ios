@@ -53,6 +53,7 @@ final class ConversationVC: BaseVC, SessionUtilRespondingViewController, Convers
     var didFinishInitialLayout = false
     var scrollDistanceToBottomBeforeUpdate: CGFloat?
     var baselineKeyboardHeight: CGFloat = 0
+    var replyNavigationStack = ConversationReplyNavigationStack()
     
     /// These flags are true between `viewDid/Will Appear/Disappear` and is used to prevent keyboard changes
     /// from trying to animate (as the animations can cause buggy transitions)
@@ -256,13 +257,17 @@ final class ConversationVC: BaseVC, SessionUtilRespondingViewController, Convers
             image: UIImage(named: "ic_chevron_down")?
                 .withRenderingMode(.alwaysTemplate)
         ) { [weak self] in
-            // The table view's content size is calculated by the estimated height of cells,
-            // so the result may be inaccurate before all the cells are loaded. Use this
-            // to scroll to the last row instead.
-            self?.scrollToBottom(isAnimated: true)
+            if let previousPosition = self?.replyNavigationStack.removeLast() {
+                self?.scrollToInteractionIfNeeded(with: previousPosition, focusBehaviour: .highlight)
+            } else {
+                // The table view's content size is calculated by the estimated height of cells,
+                // so the result may be inaccurate before all the cells are loaded. Use this
+                // to scroll to the last row instead.
+                self?.scrollToBottom(isAnimated: true)
+            }
         }
         result.alpha = 0
-        
+
         return result
     }()
     
@@ -1640,6 +1645,13 @@ final class ConversationVC: BaseVC, SessionUtilRespondingViewController, Convers
 
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         isUserScrolling = false
+        if !decelerate {
+            self.onScrollFinished()
+        }
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        self.onScrollFinished()
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -1668,6 +1680,16 @@ final class ConversationVC: BaseVC, SessionUtilRespondingViewController, Convers
         DispatchQueue.main.async { [weak self] in
             self?.markFullyVisibleAndOlderCellsAsRead(interactionInfo: focusedInteractionInfo)
             self?.highlightCellIfNeeded(interactionId: focusedInteractionInfo.id, behaviour: behaviour)
+        }
+
+        self.onScrollFinished()
+    }
+
+    func onScrollFinished() {
+        DispatchQueue.main.async { [weak self] in
+            if let newestMessageViewModel: MessageViewModel = self?.getNewestMessageViewModel() {
+                self?.replyNavigationStack.removeTimestampsOlder(than: newestMessageViewModel.timestampMs)
+            }
         }
     }
 
@@ -1935,36 +1957,9 @@ final class ConversationVC: BaseVC, SessionUtilRespondingViewController, Convers
     }
     
     func markFullyVisibleAndOlderCellsAsRead(interactionInfo: Interaction.TimestampInfo?) {
-        // We want to mark messages as read on load and while we scroll, so grab the newest message and mark
-        // everything older as read
-        //
-        // Note: For the 'tableVisualBottom' we remove the 'Values.mediumSpacing' as that is the distance
-        // the table content appears above the input view
-        let tableVisualBottom: CGFloat = (tableView.frame.maxY - (tableView.contentInset.bottom - Values.mediumSpacing))
-        
-        guard
-            let visibleIndexPaths: [IndexPath] = self.tableView.indexPathsForVisibleRows,
-            let messagesSection: Int = visibleIndexPaths
-                .first(where: { self.viewModel.interactionData[$0.section].model == .messages })?
-                .section,
-            let newestCellViewModel: MessageViewModel = visibleIndexPaths
-                .sorted()
-                .filter({ $0.section == messagesSection })
-                .compactMap({ indexPath -> (frame: CGRect, cellViewModel: MessageViewModel)? in
-                    guard let cell: VisibleMessageCell = tableView.cellForRow(at: indexPath) as? VisibleMessageCell else {
-                        return nil
-                    }
-                    
-                    return (
-                        view.convert(cell.frame, from: tableView),
-                        self.viewModel.interactionData[indexPath.section].elements[indexPath.row]
-                    )
-                })
-                // Exclude messages that are partially off the bottom of the screen
-                .filter({ $0.frame.maxY <= tableVisualBottom })
-                .last?
-                .cellViewModel
-        else {
+        // We want to mark messages as read on load and while we scroll,
+        // so grab the newest message and mark everything older as read
+        guard let newestCellViewModel = getNewestMessageViewModel() else {
             // If we weren't able to get any visible cells for some reason then we should fall back to
             // marking the provided interactionInfo as read just in case
             if let interactionInfo: Interaction.TimestampInfo = interactionInfo {
@@ -2001,9 +1996,64 @@ final class ConversationVC: BaseVC, SessionUtilRespondingViewController, Convers
         }
     }
     
+    
+    func getNewestMessageViewModel() -> MessageViewModel? {
+        // Note: For the 'tableVisualBottom' we remove the 'Values.mediumSpacing' as that is the distance
+        // the table content appears above the input view
+        let tableVisualBottom: CGFloat = (tableView.frame.maxY - (tableView.contentInset.bottom - Values.mediumSpacing))
+
+        let visibleIndexPaths: [IndexPath]? = self.tableView.indexPathsForVisibleRows
+        let messagesSection: Int? = visibleIndexPaths?.first(where: { self.viewModel.interactionData[$0.section].model == .messages })?.section
+        let newestCellViewModel: MessageViewModel? = visibleIndexPaths?
+            .sorted()
+            .filter { $0.section == messagesSection }
+            .compactMap { indexPath -> (frame: CGRect, cellViewModel: MessageViewModel)? in
+                guard let cell: VisibleMessageCell = tableView.cellForRow(at: indexPath) as? VisibleMessageCell else {
+                    return nil
+                }
+
+                return (
+                    view.convert(cell.frame, from: tableView),
+                    self.viewModel.interactionData[indexPath.section].elements[indexPath.row]
+                )
+            }
+            // Exclude messages that are partially off the bottom of the screen
+            .filter { $0.frame.maxY <= tableVisualBottom }
+            .last?
+            .cellViewModel
+
+        return newestCellViewModel
+    }
+    
     // MARK: - SessionUtilRespondingViewController
     
     func isConversation(in threadIds: [String]) -> Bool {
         return threadIds.contains(self.viewModel.threadData.threadId)
+    }
+}
+
+struct ConversationReplyNavigationStack {
+    private var messageTimestamps: [Interaction.TimestampInfo] = []
+    
+    mutating func add(_ timestamp: Interaction.TimestampInfo) {
+        if !messageTimestamps.contains(where: { $0.id == timestamp.id }) {
+            self.messageTimestamps.append(timestamp)
+        }
+    }
+    
+    mutating func removeLast() -> Interaction.TimestampInfo? {
+        if isEmpty { return nil }
+
+        return messageTimestamps.removeLast()
+    }
+    
+    var isEmpty: Bool { messageTimestamps.isEmpty }
+    
+    mutating func removeTimestampsOlder(than timestamp: Int64) {
+        for i in (0 ..< self.messageTimestamps.count).reversed() {
+            if self.messageTimestamps[i].timestampMs <= timestamp {
+                self.messageTimestamps.remove(at: i)
+            }
+        }
     }
 }

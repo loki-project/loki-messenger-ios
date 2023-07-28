@@ -972,6 +972,8 @@ extension ConversationVC:
                     }
                     
                     self.scrollToInteractionIfNeeded(with: interactionInfo, focusBehaviour: .highlight)
+                    let originalMessageTimestamp = Interaction.TimestampInfo(id: cellViewModel.id, timestampMs: cellViewModel.timestampMs)
+                    self.replyNavigationStack.add(originalMessageTimestamp)
                 }
                 else if let linkPreview: LinkPreview = cellViewModel.linkPreview {
                     switch linkPreview.variant {
