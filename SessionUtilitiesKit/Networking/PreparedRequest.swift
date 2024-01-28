@@ -606,7 +606,13 @@ public extension HTTP.PreparedRequest {
     ) -> HTTP.PreparedRequest<R> where R: Decodable {
         return HTTP.PreparedRequest(
             request: URLRequest(url: URL(fileURLWithPath: "")),
-            target: HTTP.ServerTarget(server: "", path: "", queryParameters: [:], x25519PublicKey: ""),
+            target: HTTP.ServerTarget(
+                server: "",
+                path: "",
+                queryParameters: [:],
+                encType: .xchacha20,
+                x25519PublicKey: ""
+            ),
             originalType: R.self,
             responseType: R.self,
             retryCount: 0,

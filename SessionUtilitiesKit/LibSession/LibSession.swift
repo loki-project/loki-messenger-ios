@@ -9,3 +9,10 @@ public enum LibSession {
     public static let logLevel: LogLevel = LOG_LEVEL_INFO
     public static var version: String { String(cString: LIBSESSION_UTIL_VERSION_STR) }
 }
+
+// MARK: - OninoRequestEncryptionType
+
+public enum OnionRequestEncryptionType: Codable {
+    case aesgcm
+    case xchacha20
+}

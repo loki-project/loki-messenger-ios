@@ -70,7 +70,7 @@ class MessageReceiverGroupsSpec: QuickSpec {
         @TestState(singleton: .network, in: dependencies) var mockNetwork: MockNetwork! = MockNetwork(
             initialSetup: { network in
                 network
-                    .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, timeout: .any, using: .any)) }
+                    .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, timeout: .any, using: .any)) }
                     .thenReturn(MockNetwork.response(with: FileUploadResponse(id: "1")))
                 network
                     .when { $0.send(.selectedNetworkRequest(.any, to: .any, timeout: .any, using: .any)) }
@@ -724,6 +724,7 @@ class MessageReceiverGroupsSpec: QuickSpec {
                                         .selectedNetworkRequest(
                                             .any,
                                             to: PushNotificationAPI.server.value(using: dependencies),
+                                            encType: .xchacha20,
                                             with: PushNotificationAPI.serverPublicKey,
                                             timeout: HTTP.defaultTimeout,
                                             using: .any
@@ -793,6 +794,7 @@ class MessageReceiverGroupsSpec: QuickSpec {
                                         .selectedNetworkRequest(
                                             expectedRequest,
                                             to: PushNotificationAPI.server.value(using: dependencies),
+                                            encType: .xchacha20,
                                             with: PushNotificationAPI.serverPublicKey,
                                             timeout: HTTP.defaultTimeout,
                                             using: .any
@@ -2972,6 +2974,7 @@ class MessageReceiverGroupsSpec: QuickSpec {
                                 .selectedNetworkRequest(
                                     expectedRequest,
                                     to: PushNotificationAPI.server.value(using: dependencies),
+                                    encType: .xchacha20,
                                     with: PushNotificationAPI.serverPublicKey,
                                     timeout: HTTP.defaultTimeout,
                                     using: .any

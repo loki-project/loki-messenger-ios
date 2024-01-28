@@ -52,7 +52,7 @@ class DisplayPictureDownloadJobSpec: QuickSpec {
         @TestState(singleton: .network, in: dependencies) var mockNetwork: MockNetwork! = MockNetwork(
             initialSetup: { network in
                 network
-                    .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, timeout: .any, using: .any)) }
+                    .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, timeout: .any, using: .any)) }
                     .thenReturn(MockNetwork.response(data: encryptedData))
             }
         )
@@ -510,6 +510,7 @@ class DisplayPictureDownloadJobSpec: QuickSpec {
                             .selectedNetworkRequest(
                                 expectedRequest,
                                 to: FileServerAPI.server,
+                                encType: .xchacha20,
                                 with: FileServerAPI.serverPublicKey,
                                 timeout: FileServerAPI.fileDownloadTimeout,
                                 using: .any
@@ -571,6 +572,7 @@ class DisplayPictureDownloadJobSpec: QuickSpec {
                             .selectedNetworkRequest(
                                 expectedRequest,
                                 to: "testserver",
+                                encType: .xchacha20,
                                 with: TestConstants.serverPublicKey,
                                 timeout: FileServerAPI.fileDownloadTimeout,
                                 using: .any
@@ -1126,7 +1128,7 @@ class DisplayPictureDownloadJobSpec: QuickSpec {
                         
                         // SOGS doesn't encrypt it's images so replace the encrypted mock response
                         mockNetwork
-                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, timeout: .any, using: .any)) }
+                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, timeout: .any, using: .any)) }
                             .thenReturn(MockNetwork.response(data: imageData))
                     }
                     

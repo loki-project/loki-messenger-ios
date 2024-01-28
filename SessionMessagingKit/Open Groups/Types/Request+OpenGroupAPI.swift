@@ -11,6 +11,7 @@ internal extension HTTP {
         public let server: String
         let path: String
         let queryParameters: [HTTPQueryParam: String]
+        public let encType: OnionRequestEncryptionType
         public let serverPublicKey: String
         public let forceBlinded: Bool
         
@@ -48,6 +49,7 @@ public extension Request {
                 server: server,
                 path: endpoint.path,
                 queryParameters: queryParameters,
+                encType: .xchacha20,
                 serverPublicKey: publicKey,
                 forceBlinded: forceBlinded
             ),

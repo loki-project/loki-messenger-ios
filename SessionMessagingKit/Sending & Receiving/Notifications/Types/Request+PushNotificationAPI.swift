@@ -21,6 +21,10 @@ public extension Request where Endpoint == PushNotificationAPI.Endpoint {
                 server: endpoint.server(using: dependencies),
                 path: endpoint.path,
                 queryParameters: queryParameters,
+                encType: (endpoint.server(using: dependencies) == PushNotificationAPI.legacyServer ?
+                    .aesgcm :   // The legacy PN server doesn't support 'xchacha20' onion requests
+                    .xchacha20
+                ),
                 x25519PublicKey: endpoint.serverPublicKey
             ),
             headers: headers,

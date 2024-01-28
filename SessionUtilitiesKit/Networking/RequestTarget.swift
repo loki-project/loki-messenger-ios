@@ -9,6 +9,7 @@ public protocol RequestTarget: Equatable {
 
 public protocol ServerRequestTarget: RequestTarget {
     var server: String { get }
+    var encType: OnionRequestEncryptionType { get }
     var x25519PublicKey: String { get }
 }
 
@@ -33,6 +34,7 @@ public extension HTTP {
         public let server: String
         let path: String
         let queryParameters: [HTTPQueryParam: String]
+        public let encType: OnionRequestEncryptionType
         public let x25519PublicKey: String
         
         public var url: URL? { URL(string: "\(server)\(urlPathAndParamsString)") }
@@ -44,11 +46,13 @@ public extension HTTP {
             server: String,
             path: String,
             queryParameters: [HTTPQueryParam: String],
+            encType: OnionRequestEncryptionType,
             x25519PublicKey: String
         ) {
             self.server = server
             self.path = path
             self.queryParameters = queryParameters
+            self.encType = encType
             self.x25519PublicKey = x25519PublicKey
         }
     }
@@ -63,6 +67,7 @@ public extension Request {
         endpoint: Endpoint,
         queryParameters: [HTTPQueryParam: String] = [:],
         headers: [HTTPHeader: String] = [:],
+        encType: OnionRequestEncryptionType = .xchacha20,
         x25519PublicKey: String,
         body: T? = nil
     ) {
@@ -73,6 +78,7 @@ public extension Request {
                 server: server,
                 path: endpoint.path,
                 queryParameters: queryParameters,
+                encType: encType,
                 x25519PublicKey: x25519PublicKey
             ),
             headers: headers,

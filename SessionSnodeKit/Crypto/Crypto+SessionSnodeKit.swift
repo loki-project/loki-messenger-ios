@@ -68,9 +68,10 @@ internal extension Crypto.Generator {
             try CExceptionHelper.performSafely {
                 var builder: UnsafeMutablePointer<onion_request_builder_object>? = nil
                 onion_request_builder_init(&builder)
+                onion_request_builder_set_enc_type(builder, destination.encryptionType.cValue)
                 
                 switch destination {
-                    case .server(let host, let target, let x25519PublicKey, let scheme, let port):
+                    case .server(let host, let target, let x25519PublicKey, let scheme, let port, _):
                         let targetScheme: String = (scheme ?? "https")
                         var cHost: [CChar] = host.cArray.nullTerminated()
                         var cTarget: [CChar] = target.cArray.nullTerminated()
@@ -143,7 +144,7 @@ internal extension Crypto.Generator {
             var ciphertext: [UInt8] = Array(responseData)
             var cDestinationx25519Pubkey: [UInt8] = {
                 switch destination {
-                    case .server(_, _, let x25519PublicKey, _, _):
+                    case .server(_, _, let x25519PublicKey, _, _, _):
                         return Array(Data(hex: x25519PublicKey))
                         
                     case .snode(let snode): return Array(Data(hex: snode.x25519PublicKey))
@@ -159,7 +160,7 @@ internal extension Crypto.Generator {
                 result = onion_request_decrypt(
                     &ciphertext,
                     ciphertext.count,
-                    ENCRYPT_TYPE_X_CHA_CHA_20,
+                    destination.encryptionType.cValue,
                     &cDestinationx25519Pubkey,
                     &finalX25519Pubkey,
                     &finalX25519Seckey,
@@ -178,6 +179,15 @@ internal extension Crypto.Generator {
             maybePlaintextPtr?.deallocate()
             
             return plaintext
+        }
+    }
+}
+
+private extension OnionRequestEncryptionType {
+    var cValue: ENCRYPT_TYPE {
+        switch self {
+            case .aesgcm: return ENCRYPT_TYPE_AES_GCM
+            case .xchacha20: return ENCRYPT_TYPE_X_CHA_CHA_20
         }
     }
 }

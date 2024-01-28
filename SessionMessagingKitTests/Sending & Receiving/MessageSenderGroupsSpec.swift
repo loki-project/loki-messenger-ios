@@ -68,7 +68,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                     .when { $0.send(.selectedNetworkRequest(.any, to: .any, timeout: .any, using: .any)) }
                     .thenReturn(HTTP.BatchResponse.mockConfigSyncResponse)
                 network
-                    .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, timeout: .any, using: .any)) }
+                    .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, timeout: .any, using: .any)) }
                     .thenReturn(MockNetwork.response(with: FileUploadResponse(id: "1")))
             }
         )
@@ -559,6 +559,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                                 .selectedNetworkRequest(
                                     expectedRequest,
                                     to: FileServerAPI.server,
+                                    encType: .xchacha20,
                                     with: FileServerAPI.serverPublicKey,
                                     timeout: FileServerAPI.fileUploadTimeout,
                                     using: .any
@@ -594,6 +595,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                                     .selectedNetworkRequest(
                                         expectedRequest,
                                         to: FileServerAPI.server,
+                                        encType: .xchacha20,
                                         with: FileServerAPI.serverPublicKey,
                                         timeout: FileServerAPI.fileUploadTimeout,
                                         using: .any
@@ -629,7 +631,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                     // MARK: ------ fails if the image fails to upload
                     it("fails if the image fails to upload") {
                         mockNetwork
-                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, timeout: .any, using: .any)) }
+                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, timeout: .any, using: .any)) }
                             .thenReturn(Fail(error: HTTPError.generic).eraseToAnyPublisher())
                         
                         MessageSender
@@ -725,6 +727,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                                     .selectedNetworkRequest(
                                         expectedRequest,
                                         to: PushNotificationAPI.server.value(using: dependencies),
+                                        encType: .xchacha20,
                                         with: PushNotificationAPI.serverPublicKey,
                                         timeout: HTTP.defaultTimeout,
                                         using: .any
@@ -760,6 +763,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                                     .selectedNetworkRequest(
                                         .any,
                                         to: PushNotificationAPI.server.value(using: dependencies),
+                                        encType: .xchacha20,
                                         with: PushNotificationAPI.serverPublicKey,
                                         timeout: HTTP.defaultTimeout,
                                         using: .any
@@ -795,6 +799,7 @@ class MessageSenderGroupsSpec: QuickSpec {
                                     .selectedNetworkRequest(
                                         .any,
                                         to: PushNotificationAPI.server.value(using: dependencies),
+                                        encType: .xchacha20,
                                         with: PushNotificationAPI.serverPublicKey,
                                         timeout: HTTP.defaultTimeout,
                                         using: .any

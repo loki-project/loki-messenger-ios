@@ -35,12 +35,13 @@ public extension Network.RequestType {
     static func directRequest(
         _ request: URLRequest,
         to server: String,
+        encType: OnionRequestEncryptionType,
         with x25519PublicKey: String,
         timeout: TimeInterval = HTTP.defaultTimeout
     ) -> Network.RequestType<Data?> {
         return Network.RequestType(
             id: "directRequest",
-            args: [request, server, x25519PublicKey, timeout]
+            args: [request, server, encType, x25519PublicKey, timeout]
         ) {
             guard let url = request.url, let host = request.url?.host else {
                 return Fail(error: HTTPError.invalidURL).eraseToAnyPublisher()
@@ -70,7 +71,8 @@ public extension Network.RequestType {
                     target: OnionRequestAPIVersion.v4.rawValue,
                     x25519PublicKey: x25519PublicKey,
                     scheme: scheme,
-                    port: port
+                    port: port,
+                    encType: encType
                 ),
                 timeout: timeout
             )
@@ -89,7 +91,7 @@ public enum DirectRequestAPI {
     ) -> AnyPublisher<(ResponseInfoType, Data?), Error> {
         let maybeFinalUrlString: String? = {
             switch destination {
-                case .server(let host, _, _, let scheme, _):
+                case .server(let host, _, _, let scheme, _, _):
                     return "\(scheme ?? "https")://\(host)/\(endpoint)"
                     
                 case .snode(let snode):

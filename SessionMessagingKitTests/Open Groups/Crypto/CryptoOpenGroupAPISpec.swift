@@ -313,8 +313,8 @@ class CryptoOpenGroupAPISpec: QuickSpec {
                             .plaintextWithSessionBlindingProtocol(
                                 db,
                                 ciphertext: Data(
-                                    base64Encoded: "AMmaZncBPI7EqWW1eTg6QoZtPW255IXy+M4uoh33ZgQdJb7gmsU7wJ+wEhgNDOd6" +
-                                    "4E822uYinFpZCLK81t6nfQtWoiUSkjBChvg3J61f7rpS3/A+"
+                                    base64Encoded: "ALLcu/jtQsel6HewKdRCsRYXrQl7r60Oz2SX/DKmjCRo4mO2yqMx2+oGwm39n6+p" +
+                                    "6dK1n+UWPnm4qGRiN6BvZ+xwNsBruPgyW1EV9i8AcEO0P/1X"
                                 )!,
                                 senderId: "25\(TestConstants.blind25PublicKey)",
                                 recipientId: "25\(TestConstants.blind25PublicKey)",

@@ -165,6 +165,7 @@ public extension Network.RequestType {
     static func selectedNetworkRequest(
         _ request: URLRequest,
         to server: String,
+        encType: OnionRequestEncryptionType,
         with x25519PublicKey: String,
         timeout: TimeInterval = HTTP.defaultTimeout,
         using dependencies: Dependencies
@@ -189,6 +190,7 @@ public extension Network.RequestType {
                                         .onionRequest(
                                             request,
                                             to: server,
+                                            encType: encType,
                                             with: x25519PublicKey,
                                             timeout: timeout
                                         )
@@ -200,6 +202,7 @@ public extension Network.RequestType {
                                         .directRequest(
                                             request,
                                             to: server,
+                                            encType: encType,
                                             with: x25519PublicKey,
                                             timeout: timeout
                                         )

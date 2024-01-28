@@ -31,6 +31,7 @@ public extension HTTP.PreparedRequest {
                                 .selectedNetworkRequest(
                                     request,
                                     to: serverTarget.server,
+                                    encType: serverTarget.encType,
                                     with: serverTarget.x25519PublicKey,
                                     timeout: timeout,
                                     using: dependencies

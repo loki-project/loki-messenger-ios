@@ -19,15 +19,15 @@ public extension Network.RequestType {
         ) { OnionRequestAPI.sendOnionRequest(payload, to: snode, timeout: timeout) }
     }
     
-    static func onionRequest(_ request: URLRequest, to server: String, with x25519PublicKey: String, timeout: TimeInterval = HTTP.defaultTimeout) -> Network.RequestType<Data?> {
+    static func onionRequest(_ request: URLRequest, to server: String, encType: OnionRequestEncryptionType, with x25519PublicKey: String, timeout: TimeInterval = HTTP.defaultTimeout) -> Network.RequestType<Data?> {
         return Network.RequestType(
             id: "onionRequest",
             url: request.url?.absoluteString,
             method: request.httpMethod,
             headers: request.allHTTPHeaderFields,
             body: request.httpBody,
-            args: [request, server, x25519PublicKey, timeout]
-        ) { OnionRequestAPI.sendOnionRequest(request, to: server, with: x25519PublicKey, timeout: timeout) }
+            args: [request, server, encType, x25519PublicKey, timeout]
+        ) { OnionRequestAPI.sendOnionRequest(request, to: server, encType: encType, with: x25519PublicKey, timeout: timeout) }
     }
 }
 
@@ -426,6 +426,7 @@ public enum OnionRequestAPI {
     public static func sendOnionRequest(
         _ request: URLRequest,
         to server: String,
+        encType: OnionRequestEncryptionType,
         with x25519PublicKey: String,
         timeout: TimeInterval = HTTP.defaultTimeout
     ) -> AnyPublisher<(ResponseInfoType, Data?), Error> {
@@ -450,7 +451,8 @@ public enum OnionRequestAPI {
                     target: OnionRequestAPIVersion.v4.rawValue,
                     x25519PublicKey: x25519PublicKey,
                     scheme: scheme,
-                    port: port
+                    port: port,
+                    encType: encType
                 ),
                 version: .v4,
                 timeout: timeout
@@ -575,7 +577,7 @@ public enum OnionRequestAPI {
                             else if let message = json?["result"] as? String, message == "Loki Server error" {
                                 // Do nothing
                             }
-                            else if case .server(let host, _, _, _, _) = destination, host == "116.203.70.33" && statusCode == 0 {
+                            else if case .server(let host, _, _, _, _, _) = destination, host == "116.203.70.33" && statusCode == 0 {
                                 // FIXME: Temporary thing to kick out nodes that can't talk to the V2 OGS yet
                                 handleUnspecificError()
                             }

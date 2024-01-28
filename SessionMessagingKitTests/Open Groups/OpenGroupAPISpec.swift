@@ -450,7 +450,7 @@ class OpenGroupAPISpec: QuickSpec {
                 // MARK: ---- processes a valid response correctly
                 it("processes a valid response correctly") {
                     mockNetwork
-                        .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, using: .any)) }
+                        .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, using: .any)) }
                         .thenReturn(HTTP.BatchResponse.mockCapabilitiesAndRoomResponse)
                     
                     var response: (info: ResponseInfoType, data: OpenGroupAPI.CapabilitiesAndRoomResponse)?
@@ -479,7 +479,7 @@ class OpenGroupAPISpec: QuickSpec {
                     // MARK: ------ errors when not given a room response
                     it("errors when not given a room response") {
                         mockNetwork
-                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, using: .any)) }
+                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, using: .any)) }
                             .thenReturn(HTTP.BatchResponse.mockCapabilitiesAndBanResponse)
                         
                         var response: (info: ResponseInfoType, data: OpenGroupAPI.CapabilitiesAndRoomResponse)?
@@ -505,7 +505,7 @@ class OpenGroupAPISpec: QuickSpec {
                     // MARK: ------ errors when not given a capabilities response
                     it("errors when not given a capabilities response") {
                         mockNetwork
-                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, using: .any)) }
+                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, using: .any)) }
                             .thenReturn(HTTP.BatchResponse.mockBanAndRoomResponse)
                         
                         var response: (info: ResponseInfoType, data: OpenGroupAPI.CapabilitiesAndRoomResponse)?
@@ -555,7 +555,7 @@ class OpenGroupAPISpec: QuickSpec {
                 // MARK: ---- processes a valid response correctly
                 it("processes a valid response correctly") {
                     mockNetwork
-                        .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, using: .any)) }
+                        .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, using: .any)) }
                         .thenReturn(HTTP.BatchResponse.mockCapabilitiesAndRoomsResponse)
                     
                     var response: (info: ResponseInfoType, data: OpenGroupAPI.CapabilitiesAndRoomsResponse)?
@@ -583,7 +583,7 @@ class OpenGroupAPISpec: QuickSpec {
                     // MARK: ------ errors when not given a room response
                     it("errors when not given a room response") {
                         mockNetwork
-                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, using: .any)) }
+                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, using: .any)) }
                             .thenReturn(HTTP.BatchResponse.mockCapabilitiesAndBanResponse)
                         
                         var response: (info: ResponseInfoType, data: OpenGroupAPI.CapabilitiesAndRoomsResponse)?
@@ -608,7 +608,7 @@ class OpenGroupAPISpec: QuickSpec {
                     // MARK: ------ errors when not given a capabilities response
                     it("errors when not given a capabilities response") {
                         mockNetwork
-                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, with: .any, using: .any)) }
+                            .when { $0.send(.selectedNetworkRequest(.any, to: .any, encType: .any, with: .any, using: .any)) }
                             .thenReturn(HTTP.BatchResponse.mockBanAndRoomsResponse)
                         
                         var response: (info: ResponseInfoType, data: OpenGroupAPI.CapabilitiesAndRoomsResponse)?

@@ -143,6 +143,10 @@ extension NoResponse: Mocked {
     static var mock: NoResponse = NoResponse()
 }
 
+extension OnionRequestEncryptionType: Mocked {
+    static var mock: OnionRequestEncryptionType = .xchacha20
+}
+
 // MARK: - Encodable Convenience
 
 extension Mocked where Self: Encodable {

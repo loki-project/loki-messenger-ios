@@ -26,6 +26,7 @@ class RequestSpec: QuickSpec {
                         server: "testServer",
                         path: TestEndpoint.test1.path,
                         queryParameters: [:],
+                        encType: .xchacha20,
                         x25519PublicKey: ""
                     )
                 )
@@ -189,6 +190,7 @@ class RequestSpec: QuickSpec {
                     server: "testServer",
                     path: TestEndpoint.test1.path,
                     queryParameters: [:],
+                    encType: .xchacha20,
                     x25519PublicKey: ""
                 )
                 
@@ -201,6 +203,7 @@ class RequestSpec: QuickSpec {
                     server: "testServer",
                     path: TestEndpoint.test1.path,
                     queryParameters: [:],
+                    encType: .xchacha20,
                     x25519PublicKey: ""
                 )
                 
@@ -215,6 +218,7 @@ class RequestSpec: QuickSpec {
                     queryParameters: [
                         .testParam: "123"
                     ],
+                    encType: .xchacha20,
                     x25519PublicKey: ""
                 )
                 
