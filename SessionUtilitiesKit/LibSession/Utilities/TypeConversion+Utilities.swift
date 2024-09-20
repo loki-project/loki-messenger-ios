@@ -3,7 +3,6 @@
 // stringlint:disable
 
 import Foundation
-import SessionUtil
 
 // MARK: - String
 

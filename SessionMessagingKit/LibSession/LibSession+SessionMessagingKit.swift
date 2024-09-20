@@ -170,6 +170,10 @@ public extension LibSession {
         return conf
     }
     
+    internal static func needsDump(conf: UnsafeMutablePointer<config_object>?) -> Bool {
+        return config_needs_dump(conf)
+    }
+    
     internal static func createDump(
         conf: UnsafeMutablePointer<config_object>?,
         for variant: ConfigDump.Variant,

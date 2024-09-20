@@ -1,5 +1,5 @@
 {
-  "originHash" : "77d5fda90891573a263c0fefeb989f3f1bb56e612a09be32106558b6d5fb4564",
+  "originHash" : "c137e4682b80f7c6454ed274f01a8cc9748c1cf57f800b91f47000f31ae7a0a7",
   "pins" : [
     {
       "identity" : "cocoalumberjack",
@@ -44,6 +44,15 @@
       "state" : {
         "revision" : "5e1b02b6a9dac2a759a1d5dbc175c86bd192a608",
         "version" : "24.0.0"
+      }
+    },
+    {
+      "identity" : "libsession-util",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/oxen-io/libsession-util",
+      "state" : {
+        "branch" : "swift-package-manager",
+        "revision" : "8f6392610bc9001450c93208da3ad6ccf565b22f"
       }
     },
     {

@@ -2,7 +2,6 @@
 
 import Foundation
 import GRDB
-import SessionUtil
 import SessionUtilitiesKit
 
 /// This migration goes through the current state of the database and generates config dumps for the user config types
@@ -56,7 +55,7 @@ enum _014_GenerateInitialUserConfigDumps: Migration {
                     in: conf
                 )
                 
-                if config_needs_dump(conf) {
+                if LibSession.needsDump(conf: conf) {
                     try LibSession
                         .createDump(
                             conf: conf,
@@ -122,7 +121,7 @@ enum _014_GenerateInitialUserConfigDumps: Migration {
                     in: conf
                 )
                 
-                if config_needs_dump(conf) {
+                if LibSession.needsDump(conf: conf) {
                     try LibSession
                         .createDump(
                             conf: conf,
@@ -147,7 +146,7 @@ enum _014_GenerateInitialUserConfigDumps: Migration {
                     in: conf
                 )
                 
-                if config_needs_dump(conf) {
+                if LibSession.needsDump(conf: conf) {
                     try LibSession
                         .createDump(
                             conf: conf,
@@ -183,7 +182,7 @@ enum _014_GenerateInitialUserConfigDumps: Migration {
                     in: conf
                 )
                 
-                if config_needs_dump(conf) {
+                if LibSession.needsDump(conf: conf) {
                     try LibSession
                         .createDump(
                             conf: conf,
