@@ -31,6 +31,7 @@ class OpenGroupManagerSpec: QuickSpec {
             expiresStartedAtMs: nil,
             linkPreviewUrl: nil,
             openGroupServerMessageId: nil,
+            openGroupWhisper: false,
             openGroupWhisperMods: false,
             openGroupWhisperTo: nil
         )

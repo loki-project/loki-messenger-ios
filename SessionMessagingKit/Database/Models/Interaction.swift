@@ -64,6 +64,7 @@ public struct Interaction: Codable, Identifiable, Equatable, FetchableRecord, Mu
         case openGroupServerMessageId
         case openGroupWhisperMods
         case openGroupWhisperTo
+        case openGroupWhisper
     }
     
     public enum Variant: Int, Codable, Hashable, DatabaseValueConvertible {
@@ -231,6 +232,9 @@ public struct Interaction: Codable, Identifiable, Equatable, FetchableRecord, Mu
     /// This value is the id of the user within an Open Group who is the target of this whisper interaction
     public let openGroupWhisperTo: String?
     
+    /// This flag indicates whether this interaction is a whisper
+    public let openGroupWhisper: Bool
+    
     // MARK: - Relationships
          
     public var thread: QueryInterfaceRequest<SessionThread> {
@@ -291,6 +295,7 @@ public struct Interaction: Codable, Identifiable, Equatable, FetchableRecord, Mu
         expiresStartedAtMs: Double?,
         linkPreviewUrl: String?,
         openGroupServerMessageId: Int64?,
+        openGroupWhisper: Bool,
         openGroupWhisperMods: Bool,
         openGroupWhisperTo: String?
     ) {
@@ -309,6 +314,7 @@ public struct Interaction: Codable, Identifiable, Equatable, FetchableRecord, Mu
         self.expiresStartedAtMs = expiresStartedAtMs
         self.linkPreviewUrl = linkPreviewUrl
         self.openGroupServerMessageId = openGroupServerMessageId
+        self.openGroupWhisper = openGroupWhisper
         self.openGroupWhisperMods = openGroupWhisperMods
         self.openGroupWhisperTo = openGroupWhisperTo
     }
@@ -328,6 +334,7 @@ public struct Interaction: Codable, Identifiable, Equatable, FetchableRecord, Mu
         expiresStartedAtMs: Double? = nil,
         linkPreviewUrl: String? = nil,
         openGroupServerMessageId: Int64? = nil,
+        openGroupWhisper: Bool = false,
         openGroupWhisperMods: Bool = false,
         openGroupWhisperTo: String? = nil
     ) {
@@ -352,6 +359,7 @@ public struct Interaction: Codable, Identifiable, Equatable, FetchableRecord, Mu
         self.expiresStartedAtMs = (threadVariant != .community ? expiresStartedAtMs : nil)
         self.linkPreviewUrl = linkPreviewUrl
         self.openGroupServerMessageId = openGroupServerMessageId
+        self.openGroupWhisper = openGroupWhisper
         self.openGroupWhisperMods = openGroupWhisperMods
         self.openGroupWhisperTo = openGroupWhisperTo
     }
@@ -474,6 +482,7 @@ public extension Interaction {
             expiresStartedAtMs: (expiresStartedAtMs ?? self.expiresStartedAtMs),
             linkPreviewUrl: self.linkPreviewUrl,
             openGroupServerMessageId: (openGroupServerMessageId ?? self.openGroupServerMessageId),
+            openGroupWhisper: self.openGroupWhisper,
             openGroupWhisperMods: self.openGroupWhisperMods,
             openGroupWhisperTo: self.openGroupWhisperTo
         )
@@ -836,8 +845,6 @@ public extension Interaction {
         return (expiresInSeconds ?? 0 > 0)
     }
     
-    var openGroupWhisper: Bool { return (openGroupWhisperMods || (openGroupWhisperTo != nil)) }
-    
     var notificationIdentifiers: [String] {
         [
             notificationIdentifier(shouldGroupMessagesForThread: true),
@@ -880,6 +887,7 @@ public extension Interaction {
             expiresStartedAtMs: expiresStartedAtMs,
             linkPreviewUrl: nil,
             openGroupServerMessageId: openGroupServerMessageId,
+            openGroupWhisper: openGroupWhisper,
             openGroupWhisperMods: openGroupWhisperMods,
             openGroupWhisperTo: openGroupWhisperTo
         )

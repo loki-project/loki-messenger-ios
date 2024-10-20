@@ -174,15 +174,9 @@ extension MessageReceiver {
                 linkPreviewUrl: (message.linkPreview?.url ?? message.openGroupInvitation?.url),
                 // Keep track of the open group server message ID ↔ message ID relationship
                 openGroupServerMessageId: message.openGroupServerMessageId.map { Int64($0) },
-                openGroupWhisperMods: (message.recipient?.contains(".mods") == true),
-                openGroupWhisperTo: {
-                    guard
-                        let recipientParts: [String] = message.recipient?.components(separatedBy: "."),
-                        recipientParts.count >= 3  // 'server.roomToken.whisperTo.whisperMods'
-                    else { return nil }
-                    
-                    return recipientParts[2]
-                }()
+                openGroupWhisper: message.openGroupWhisper,
+                openGroupWhisperMods: message.openGroupWhisperMods,
+                openGroupWhisperTo: message.openGroupWhisperTo
             ).inserted(db)
             // stringlint:ignore_stop
         }

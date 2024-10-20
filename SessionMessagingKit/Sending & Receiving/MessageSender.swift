@@ -190,14 +190,6 @@ public final class MessageSender {
         using dependencies: Dependencies
     ) throws -> PreparedSendData {
         message.sender = userPublicKey
-        message.recipient = {
-            switch destination {
-                case .contact(let publicKey): return publicKey
-                case .syncMessage: return userPublicKey
-                case .closedGroup(let groupPublicKey): return groupPublicKey
-                case .openGroup, .openGroupInbox: preconditionFailure()
-            }
-        }()
         
         // Validate the message
         guard message.isValid, let namespace: SnodeAPI.Namespace = namespace else {
@@ -213,9 +205,10 @@ public final class MessageSender {
         
         // Attach the user's profile if needed (no need to do so for 'Note to Self' or sync
         // messages as they will be managed by the user config handling
-        switch (destination, (message.recipient == userPublicKey), message as? MessageWithProfile) {
-            case (.syncMessage, _, _), (_, true, _), (_, _, .none): break
-            case (_, _, .some(var messageWithProfile)):
+        switch (destination, message as? MessageWithProfile) {
+            case (.syncMessage, _), (_, .none): break
+            case (.contact(let publicKey), _) where publicKey == userPublicKey: break
+            case (_, .some(var messageWithProfile)):
                 let profile: Profile = Profile.fetchOrCreateCurrentUser(db)
                 
                 if let profileKey: Data = profile.profileEncryptionKey, let profilePictureUrl: String = profile.profilePictureUrl {
@@ -330,7 +323,14 @@ public final class MessageSender {
         let base64EncodedData = wrappedMessage.base64EncodedString()
         
         let snodeMessage = SnodeMessage(
-            recipient: message.recipient!,
+            recipient: {
+                switch destination {
+                    case .contact(let publicKey): return publicKey
+                    case .syncMessage: return userPublicKey
+                    case .closedGroup(let groupPublicKey): return groupPublicKey
+                    case .openGroup, .openGroupInbox: preconditionFailure()
+                }
+            }(),
             data: base64EncodedData,
             ttl: Message.getSpecifiedTTL(
                 message: message,
@@ -361,16 +361,8 @@ public final class MessageSender {
         // stringlint:ignore_start
         switch destination {
             case .contact, .syncMessage, .closedGroup, .openGroupInbox: preconditionFailure()
-            case .openGroup(let roomToken, let server, let whisperTo, let whisperMods, _):
+            case .openGroup(let roomToken, let server, _, _, _):
                 threadId = OpenGroup.idFor(roomToken: roomToken, server: server)
-                message.recipient = [
-                    server,
-                    roomToken,
-                    whisperTo,
-                    (whisperMods ? "mods" : nil)
-                ]
-                .compactMap { $0 }
-                .joined(separator: ".")
         }
         // stringlint:ignore_stop
         
@@ -497,7 +489,6 @@ public final class MessageSender {
         }
         
         message.sender = userPublicKey
-        message.recipient = recipientBlindedPublicKey
         
         // Attach the user's profile if needed
         if let message: VisibleMessage = message as? VisibleMessage {
