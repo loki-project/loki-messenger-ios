@@ -1,3 +1,7 @@
+# Repository Deprecated
+## This repository is now deprecated. However, Session iOS is still actively developed [here](https://github.com/session-foundation/session-ios). This is in line with announcements from [Session](https://getsession.org/blog/introducing-the-session-technology-foundation) and the [OPTF](https://optf.ngo/blog/the-optf-and-session), indicating that the OTPF has handed over the stewardship of the Session Project to the [Session Technology Foundation](https://session.foundation), a Swiss-based foundation dedicated to advancing digital rights and innovation.
+
+
 # Session iOS
 
 [Download Session on the App Store](https://getsession.org/iphone)
