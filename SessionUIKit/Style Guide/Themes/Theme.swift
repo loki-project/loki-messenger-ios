@@ -2,11 +2,10 @@
 
 import UIKit.UIColor
 import SwiftUI
-import SessionUtilitiesKit
 
 // MARK: - Theme
 
-public enum Theme: String, CaseIterable, Codable, EnumStringSetting {
+public enum Theme: String, CaseIterable, Codable {
     case classicDark = "classic_dark"
     case classicLight = "classic_light"
     case oceanDark = "ocean_dark"
@@ -16,10 +15,10 @@ public enum Theme: String, CaseIterable, Codable, EnumStringSetting {
     
     public var title: String {
         switch self {
-        case .classicDark: return "appearanceThemesClassicDark".localized()
-        case .classicLight: return "appearanceThemesClassicLight".localized()
-        case .oceanDark: return "appearanceThemesOceanDark".localized()
-        case .oceanLight: return "appearanceThemesOceanLight".localized()
+            case .classicDark: return "appearanceThemesClassicDark".localizedSNUIKit()
+            case .classicLight: return "appearanceThemesClassicLight".localizedSNUIKit()
+            case .oceanDark: return "appearanceThemesOceanDark".localizedSNUIKit()
+            case .oceanLight: return "appearanceThemesOceanLight".localizedSNUIKit()
         }
     }
     
@@ -56,6 +55,7 @@ public enum Theme: String, CaseIterable, Codable, EnumStringSetting {
     public func color(for value: ThemeValue) -> UIColor? {
         switch value {
             case .value(let value, let alpha): return color(for: value)?.withAlphaComponent(alpha)
+            case .explicitPrimary(let primaryColor): return primaryColor.color
             
             case .highlighted(let value, let alwaysDarken):
                 switch (self.interfaceStyle, alwaysDarken) {
@@ -79,6 +79,7 @@ public enum Theme: String, CaseIterable, Codable, EnumStringSetting {
     public func colorSwiftUI(for themeValue: ThemeValue) -> Color? {
         switch themeValue {
             case .value(let value, let alpha): return colorSwiftUI(for: value)?.opacity(alpha)
+            case .explicitPrimary(let primaryColor): return primaryColor.colorSwiftUI
             
             case .highlighted(let value, let alwaysDarken):
                 switch (self.interfaceStyle, alwaysDarken) {
@@ -106,10 +107,11 @@ public protocol ThemedNavigation {
 
 // MARK: - ThemeValue
 
-public indirect enum ThemeValue: Hashable {
+public indirect enum ThemeValue: Hashable, Equatable {
     case value(ThemeValue, alpha: CGFloat)
+    case explicitPrimary(Theme.PrimaryColor)
     
-    // The 'highlighted' state of a colour will automatically lighten/darken a ThemeValue
+    // The 'highlighted' state of a color will automatically lighten/darken a ThemeValue
     // by a fixed amount depending on wither the theme is dark/light mode
     case highlighted(ThemeValue, alwaysDarken: Bool)
     

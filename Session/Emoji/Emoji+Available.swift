@@ -2,21 +2,21 @@
 //
 // stringlint:disable
 
-import Foundation
+import UIKit
 import SessionUtilitiesKit
 
 extension Emoji {
-    private static let availableCache: Atomic<[Emoji:Bool]> = Atomic([:])
+    @ThreadSafeObject private static var availableCache: [Emoji: Bool] = [:]
     private static let iosVersionKey = "iosVersion"
-    private static let cacheUrl = URL(fileURLWithPath: FileManager.default.appSharedDataDirectoryPath)
+    private static let cacheUrl = URL(fileURLWithPath: SessionFileManager.nonInjectedAppSharedDataDirectoryPath)
         .appendingPathComponent("Library")
         .appendingPathComponent("Caches")
         .appendingPathComponent("emoji.plist")
 
-    static func warmAvailableCache() {
+    static func warmAvailableCache(using dependencies: Dependencies) {
         Log.assertOnMainThread()
 
-        guard Singleton.hasAppContext && Singleton.appContext.isMainAppAndActive else { return }
+        guard dependencies[singleton: .appContext].isMainAppAndActive else { return }
 
         var availableCache = [Emoji: Bool]()
         var uncachedEmoji = [Emoji]()
@@ -58,10 +58,12 @@ extension Emoji {
 
             availableMap[iosVersionKey] = iosVersion
             do {
-                // Use FileManager.createDirectory directly because OWSFileSystem.ensureDirectoryExists
+                // Use FileManager.createDirectory directly because FileSystem.ensureDirectoryExists
                 // can modify the protection, and this is a system-managed directory.
-                try FileManager.default.createDirectory(at: Self.cacheUrl.deletingLastPathComponent(),
-                                                        withIntermediateDirectories: true)
+                try dependencies[singleton: .fileManager].createDirectory(
+                    at: Self.cacheUrl.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
                 try availableMap.write(to: Self.cacheUrl)
             } catch {
                 Log.warn("[Emoji] Failed to save emoji availability cache; it will be recomputed next time! \(error)")
@@ -70,7 +72,7 @@ extension Emoji {
 
         Log.info("[Emoji] Warmed emoji availability cache with \(availableCache.lazy.filter { $0.value }.count) available emoji for iOS \(iosVersion)")
 
-        Self.availableCache.mutate{ $0 = availableCache }
+        Self._availableCache.performUpdate { _ in availableCache }
     }
 
     private static func isEmojiAvailable(_ emoji: Emoji) -> Bool {
@@ -80,9 +82,9 @@ extension Emoji {
     /// Indicates whether the given emoji is available on this iOS
     /// version. We cache the availability in memory.
     var available: Bool {
-        guard let available = Self.availableCache.wrappedValue[self] else {
+        guard let available = Self.availableCache[self] else {
             let available = Self.isEmojiAvailable(self)
-            Self.availableCache.mutate{ $0[self] = available }
+            Self._availableCache.performUpdate { $0.setting(self, available) }
             return available
         }
         return available

@@ -1,5 +1,5 @@
 // This build configuration requires the following to be installed:
-// Git, Xcode, XCode Command-line Tools, xcbeautify, xcresultparser, pip
+// Git, Xcode, XCode Command-line Tools, xcbeautify, xcresultparser
 
 // Log a bunch of version information to make it easier for debugging
 local version_info = {
@@ -9,8 +9,7 @@ local version_info = {
     'git --version',
     'xcodebuild -version',
     'xcbeautify --version',
-    'xcresultparser --version',
-    'pip --version',
+    'xcresultparser --version'
   ],
 };
 

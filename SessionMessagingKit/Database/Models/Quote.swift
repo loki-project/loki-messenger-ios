@@ -94,6 +94,16 @@ public extension Quote {
             attachmentId: attachmentId ?? self.attachmentId
         )
     }
+    
+    func withOriginalMessageDeleted() -> Quote {
+        return Quote(
+            interactionId: self.interactionId,
+            authorId: self.authorId,
+            timestampMs: self.timestampMs,
+            body: nil,
+            attachmentId: nil
+        )
+    }
 }
 
 // MARK: - Protobuf

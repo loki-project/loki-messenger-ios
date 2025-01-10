@@ -18,6 +18,7 @@ public class MediaView: UIView {
 
     // MARK: -
 
+    private let dependencies: Dependencies
     private let mediaCache: NSCache<NSString, AnyObject>?
     public let attachment: Attachment
     private let isOutgoing: Bool
@@ -36,14 +37,14 @@ public class MediaView: UIView {
     //   necessary by the time they reach the front
     //   of the queue.
 
-    enum LoadState {
+    enum LoadState: ThreadSafeType {
         case unloaded
         case loading
         case loaded
         case failed
     }
 
-    private let loadState: Atomic<LoadState> = Atomic(.unloaded)
+    @ThreadSafe private var loadState: LoadState = .unloaded
 
     // MARK: - Initializers
 
@@ -52,8 +53,10 @@ public class MediaView: UIView {
         attachment: Attachment,
         isOutgoing: Bool,
         shouldSupressControls: Bool,
-        cornerRadius: CGFloat
+        cornerRadius: CGFloat,
+        using dependencies: Dependencies
     ) {
+        self.dependencies = dependencies
         self.mediaCache = mediaCache
         self.attachment = attachment
         self.isOutgoing = isOutgoing
@@ -75,7 +78,7 @@ public class MediaView: UIView {
     }
 
     deinit {
-        loadState.mutate { $0 = .unloaded }
+        loadState = .unloaded
     }
 
     // MARK: -
@@ -161,7 +164,7 @@ public class MediaView: UIView {
         animatedImageView.pin(to: self)
         _ = addUploadProgressIfNecessary(animatedImageView)
 
-        loadBlock = { [weak self] in
+        loadBlock = { [weak self, dependencies] in
             Log.assertOnMainThread()
             
             if animatedImageView.image != nil {
@@ -174,7 +177,7 @@ public class MediaView: UIView {
                         self?.configure(forError: .invalid)
                         return
                     }
-                    guard let filePath: String = attachment.originalFilePath else {
+                    guard let filePath: String = attachment.originalFilePath(using: dependencies) else {
                         Log.error("[MediaView] Attachment stream missing original file path.")
                         self?.configure(forError: .invalid)
                         return
@@ -218,7 +221,7 @@ public class MediaView: UIView {
         stillImageView.pin(to: self)
         _ = addUploadProgressIfNecessary(stillImageView)
         
-        loadBlock = { [weak self] in
+        loadBlock = { [weak self, dependencies] in
             Log.assertOnMainThread()
 
             if stillImageView.image != nil {
@@ -234,6 +237,7 @@ public class MediaView: UIView {
                     
                     attachment.thumbnail(
                         size: .large,
+                        using: dependencies,
                         success: { image, _ in applyMediaBlock(image) },
                         failure: {
                             Log.error("[MediaView] Could not load thumbnail")
@@ -308,7 +312,7 @@ public class MediaView: UIView {
             videoPlayButton.center(in: stillImageView)
         }
 
-        loadBlock = { [weak self] in
+        loadBlock = { [weak self, dependencies] in
             Log.assertOnMainThread()
 
             if stillImageView.image != nil {
@@ -324,6 +328,7 @@ public class MediaView: UIView {
                     
                     attachment.thumbnail(
                         size: .medium,
+                        using: dependencies,
                         success: { image, _ in applyMediaBlock(image) },
                         failure: {
                             Log.error("[MediaView] Could not load thumbnail")
@@ -372,6 +377,8 @@ public class MediaView: UIView {
                     return
                 }
                 icon = asset
+                self.isAccessibilityElement = true
+                self.accessibilityIdentifier = "Media retry"
                 
             case .invalid:
                 guard let asset = UIImage(named: "media_invalid") else {
@@ -379,6 +386,8 @@ public class MediaView: UIView {
                     return
                 }
                 icon = asset
+                self.isAccessibilityElement = true
+                self.accessibilityIdentifier = "Media invalid"
                 
             case .missing: return
         }
@@ -408,12 +417,12 @@ public class MediaView: UIView {
         // It's critical that we update loadState once
         // our load attempt is complete.
         let loadCompletion: (AnyObject?) -> Void = { [weak self] possibleMedia in
-            guard self?.loadState.wrappedValue == .loading else {
+            guard self?.loadState == .loading else {
                 Log.verbose("[MediaView] Skipping obsolete load.")
                 return
             }
             guard let media: AnyObject = possibleMedia else {
-                self?.loadState.mutate { $0 = .failed }
+                self?.loadState = .failed
                 // TODO:
                 //            [self showAttachmentErrorViewWithMediaView:mediaView];
                 return
@@ -422,10 +431,10 @@ public class MediaView: UIView {
             applyMediaBlock(media)
             
             self?.mediaCache?.setObject(media, forKey: cacheKey as NSString)
-            self?.loadState.mutate { $0 = .loaded }
+            self?.loadState = .loaded
         }
 
-        guard loadState.wrappedValue == .loading else {
+        guard loadState == .loading else {
             Log.error("[MediaView] Unexpected load state: \(loadState)")
             return
         }
@@ -447,7 +456,7 @@ public class MediaView: UIView {
         Log.verbose("[MediaView] media cache miss")
 
         MediaView.loadQueue.async { [weak self] in
-            guard self?.loadState.wrappedValue == .loading else {
+            guard self?.loadState == .loading else {
                 Log.verbose("[MediaView] Skipping obsolete load.")
                 return
             }
@@ -481,9 +490,9 @@ public class MediaView: UIView {
     private static let loadQueue = ReverseDispatchQueue(label: "org.signal.asyncMediaLoadQueue")
 
     public func loadMedia() {
-        switch loadState.wrappedValue {
+        switch loadState {
             case .unloaded:
-                loadState.mutate { $0 = .loading }
+                loadState = .loading
                 loadBlock?()
         
             case .loading, .loaded, .failed: break
@@ -491,7 +500,7 @@ public class MediaView: UIView {
     }
 
     public func unloadMedia() {
-        loadState.mutate { $0 = .unloaded }
+        loadState = .unloaded
         unloadBlock?()
     }
 }
@@ -503,6 +512,7 @@ import SwiftUI
 struct MediaView_SwiftUI: UIViewRepresentable {
     public typealias UIViewType = MediaView
     
+    private let dependencies: Dependencies
     private let mediaCache: NSCache<NSString, AnyObject>?
     public let attachment: Attachment
     private let isOutgoing: Bool
@@ -514,8 +524,10 @@ struct MediaView_SwiftUI: UIViewRepresentable {
         attachment: Attachment,
         isOutgoing: Bool,
         shouldSupressControls: Bool,
-        cornerRadius: CGFloat
+        cornerRadius: CGFloat,
+        using dependencies: Dependencies
     ) {
+        self.dependencies = dependencies
         self.mediaCache = mediaCache
         self.attachment = attachment
         self.isOutgoing = isOutgoing
@@ -527,9 +539,10 @@ struct MediaView_SwiftUI: UIViewRepresentable {
         let mediaView = MediaView(
             mediaCache: mediaCache,
             attachment: attachment,
-            isOutgoing: isOutgoing,
+            isOutgoing: isOutgoing, 
             shouldSupressControls: shouldSupressControls,
-            cornerRadius: cornerRadius
+            cornerRadius: cornerRadius,
+            using: dependencies
         )
         
         return mediaView

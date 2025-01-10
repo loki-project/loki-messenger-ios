@@ -6,17 +6,18 @@ import SessionUtilitiesKit
 // MARK: - Singleton
 
 public extension Singleton {
-    // FIXME: This will be reworked to be part of dependencies in the Groups Rebuild branch
-    fileprivate static var _appReadiness: Atomic<AppReadiness> = Atomic(AppReadiness())
-    static var appReadiness: AppReadiness { _appReadiness.wrappedValue }
+    static let appReadiness: SingletonConfig<AppReadiness> = Dependencies.create(
+        identifier: "appReadiness",
+        createInstance: { _ in AppReadiness() }
+    )
 }
 
 // MARK: - AppReadiness
 
 public class AppReadiness {
     public private(set) var isAppReady: Bool = false
-    private var appWillBecomeReadyBlocks: Atomic<[() -> ()]> = Atomic([])
-    private var appDidBecomeReadyBlocks: Atomic<[() -> ()]> = Atomic([])
+    @ThreadSafeObject private var appWillBecomeReadyBlocks: [() -> ()] = []
+    @ThreadSafeObject private var appDidBecomeReadyBlocks: [() -> ()] = []
     
     public func setAppReady() {
         guard Thread.isMainThread else {
@@ -28,10 +29,10 @@ public class AppReadiness {
         isAppReady = true
         
         // Trigure the closures
-        let willBecomeReadyClosures: [() -> ()] = appWillBecomeReadyBlocks.wrappedValue
-        let didBecomeReadyClosures: [() -> ()] = appDidBecomeReadyBlocks.wrappedValue
-        appWillBecomeReadyBlocks.mutate { $0 = [] }
-        appDidBecomeReadyBlocks.mutate { $0 = [] }
+        let willBecomeReadyClosures: [() -> ()] = appWillBecomeReadyBlocks
+        let didBecomeReadyClosures: [() -> ()] = appDidBecomeReadyBlocks
+        _appWillBecomeReadyBlocks.set(to: [])
+        _appDidBecomeReadyBlocks.set(to: [])
         
         willBecomeReadyClosures.forEach { $0() }
         didBecomeReadyClosures.forEach { $0() }
@@ -43,7 +44,7 @@ public class AppReadiness {
     
     public func runNowOrWhenAppWillBecomeReady(closure: @escaping () -> ()) {
         // We don't need to do any "on app ready" work in the tests.
-        guard !SNUtilitiesKitConfiguration.isRunningTests else { return }
+        guard !SNUtilitiesKit.isRunningTests else { return }
         guard !isAppReady else {
             guard Thread.isMainThread else {
                 DispatchQueue.main.async { [weak self] in self?.runNowOrWhenAppWillBecomeReady(closure: closure) }
@@ -53,12 +54,12 @@ public class AppReadiness {
             return closure()
         }
         
-        appWillBecomeReadyBlocks.mutate { $0.append(closure) }
+        _appWillBecomeReadyBlocks.performUpdate { $0.appending(closure) }
     }
     
     public func runNowOrWhenAppDidBecomeReady(closure: @escaping () -> ()) {
         // We don't need to do any "on app ready" work in the tests.
-        guard !SNUtilitiesKitConfiguration.isRunningTests else { return }
+        guard !SNUtilitiesKit.isRunningTests else { return }
         guard !isAppReady else {
             guard Thread.isMainThread else {
                 DispatchQueue.main.async { [weak self] in self?.runNowOrWhenAppDidBecomeReady(closure: closure) }
@@ -68,6 +69,6 @@ public class AppReadiness {
             return closure()
         }
         
-        appDidBecomeReadyBlocks.mutate { $0.append(closure) }
+        _appDidBecomeReadyBlocks.performUpdate { $0.appending(closure) }
     }
 }
