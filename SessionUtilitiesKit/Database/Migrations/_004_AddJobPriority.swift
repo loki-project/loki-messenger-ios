@@ -6,7 +6,6 @@ import GRDB
 enum _004_AddJobPriority: Migration {
     static let target: TargetMigrations.Identifier = .utilitiesKit
     static let identifier: String = "AddJobPriority"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [Job.self]
@@ -39,6 +38,6 @@ enum _004_AddJobPriority: Migration {
                 )
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

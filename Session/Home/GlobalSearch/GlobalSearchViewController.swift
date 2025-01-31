@@ -43,9 +43,9 @@ class GlobalSearchViewController: BaseVC, LibSessionRespondingViewController, UI
     private let dependencies: Dependencies
     private lazy var defaultSearchResults: SearchResultData = {
         let nonalphabeticNameTitle: String = "#" // stringlint:ignore
-        let contacts: [SessionThreadViewModel] = Storage.shared.read { db -> [SessionThreadViewModel]? in
+        let contacts: [SessionThreadViewModel] = dependencies[singleton: .storage].read { [dependencies] db -> [SessionThreadViewModel]? in
             try SessionThreadViewModel
-                .defaultContactsQuery(userPublicKey: getUserHexEncodedPublicKey(db))
+                .defaultContactsQuery(using: dependencies)
                 .fetchAll(db)
         }
         .defaulting(to: [])
@@ -106,7 +106,7 @@ class GlobalSearchViewController: BaseVC, LibSessionRespondingViewController, UI
         )
     }()
     
-    private var readConnection: Atomic<Database?> = Atomic(nil)
+    @ThreadSafeObject private var readConnection: Database? = nil
     private lazy var searchResultSet: SearchResultData = defaultSearchResults
     private var termForCurrentSearchResultSet: String = ""
     private var lastSearchText: String?
@@ -234,12 +234,15 @@ class GlobalSearchViewController: BaseVC, LibSessionRespondingViewController, UI
 
     private func refreshSearchResults() {
         refreshTimer?.invalidate()
-        refreshTimer = WeakTimer.scheduledTimer(timeInterval: 0.1, target: self, userInfo: nil, repeats: false) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimerOnMainThread(withTimeInterval: 0.1, using: dependencies) { [weak self] _ in
             self?.updateSearchResults(searchText: (self?.searchText ?? ""))
         }
     }
 
-    private func updateSearchResults(searchText rawSearchText: String, force: Bool = false) {
+    private func updateSearchResults(
+        searchText rawSearchText: String,
+        force: Bool = false
+    ) {
         let searchText = rawSearchText.stripped
         
         guard searchText.count > 0 else {
@@ -254,24 +257,24 @@ class GlobalSearchViewController: BaseVC, LibSessionRespondingViewController, UI
 
         lastSearchText = searchText
 
-        DispatchQueue.global(qos: .default).async { [weak self] in
-            self?.readConnection.wrappedValue?.interrupt()
+        DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 0.01) { [weak self, dependencies] in
+            self?.readConnection?.interrupt()
             
-            let result: Result<[SectionModel], Error>? = Storage.shared.read { db -> Result<[SectionModel], Error> in
-                self?.readConnection.mutate { $0 = db }
+            let result: Result<[SectionModel], Error>? = dependencies[singleton: .storage].read { db -> Result<[SectionModel], Error> in
+                self?._readConnection.set(to: db)
                 
                 do {
-                    let userPublicKey: String = getUserHexEncodedPublicKey(db)
+                    let userSessionId: SessionId = dependencies[cache: .general].sessionId
                     let contactsAndGroupsResults: [SessionThreadViewModel] = try SessionThreadViewModel
                         .contactsAndGroupsQuery(
-                            userPublicKey: userPublicKey,
+                            userSessionId: userSessionId,
                             pattern: try SessionThreadViewModel.pattern(db, searchTerm: searchText),
                             searchTerm: searchText
                         )
                         .fetchAll(db)
                     let messageResults: [SessionThreadViewModel] = try SessionThreadViewModel
                         .messagesQuery(
-                            userPublicKey: userPublicKey,
+                            userSessionId: userSessionId,
                             pattern: try SessionThreadViewModel.pattern(db, searchTerm: searchText)
                         )
                         .fetchAll(db)
@@ -290,6 +293,7 @@ class GlobalSearchViewController: BaseVC, LibSessionRespondingViewController, UI
                     return .failure(error)
                 }
             }
+            self?._readConnection.set(to: nil)
             
             DispatchQueue.main.async {
                 switch result {
@@ -393,12 +397,13 @@ extension GlobalSearchViewController {
         // If it's a one-to-one thread then make sure the thread exists before pushing to it (in case the
         // contact has been hidden)
         if threadVariant == .contact {
-            Storage.shared.write { db in
-                try SessionThread.fetchOrCreate(
+            dependencies[singleton: .storage].write { [dependencies] db in
+                try SessionThread.upsert(
                     db,
                     id: threadId,
                     variant: threadVariant,
-                    shouldBeVisible: nil    // Don't change current state
+                    values: .existingOrDefault,
+                    using: dependencies
                 )
             }
         }
@@ -495,17 +500,25 @@ extension GlobalSearchViewController {
         switch section.model {
             case .contactsAndGroups:
                 let cell: FullConversationCell = tableView.dequeue(type: FullConversationCell.self, for: indexPath)
-                cell.updateForContactAndGroupSearchResult(with: section.elements[indexPath.row], searchText: self.termForCurrentSearchResultSet)
+                cell.updateForContactAndGroupSearchResult(
+                    with: section.elements[indexPath.row],
+                    searchText: self.termForCurrentSearchResultSet,
+                    using: dependencies
+                )
                 return cell
                 
             case .messages:
                 let cell: FullConversationCell = tableView.dequeue(type: FullConversationCell.self, for: indexPath)
-                cell.updateForMessageSearchResult(with: section.elements[indexPath.row], searchText: self.termForCurrentSearchResultSet)
+                cell.updateForMessageSearchResult(
+                    with: section.elements[indexPath.row],
+                    searchText: self.termForCurrentSearchResultSet,
+                    using: dependencies
+                )
                 return cell
             
             case .groupedContacts:
                 let cell: FullConversationCell = tableView.dequeue(type: FullConversationCell.self, for: indexPath)
-                cell.updateForDefaultContacts(with: section.elements[indexPath.row])
+                cell.updateForDefaultContacts(with: section.elements[indexPath.row], using: dependencies)
                 return cell
         }
     }

@@ -8,7 +8,6 @@ import SessionUtilitiesKit
 enum _008_EmojiReacts: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "EmojiReacts"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.01
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [Reaction.self]
@@ -40,6 +39,6 @@ enum _008_EmojiReacts: Migration {
             t.uniqueKey([.interactionId, .emoji, .authorId])
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

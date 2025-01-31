@@ -6,7 +6,6 @@ import GRDB
 enum _005_AddJobUniqueHash: Migration {
     static let target: TargetMigrations.Identifier = .utilitiesKit
     static let identifier: String = "AddJobUniqueHash"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [Job.self]
@@ -18,6 +17,6 @@ enum _005_AddJobUniqueHash: Migration {
             t.add(.uniqueHashValue, .integer)
         }
         
-        Storage.update(progress: 1, for: self, in: target)
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

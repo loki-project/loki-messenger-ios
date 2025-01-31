@@ -11,7 +11,7 @@ internal enum Theme_OceanDark: ThemeColors {
         .clear: .clear,
         .primary: .primary,
         .defaultPrimary: Theme.PrimaryColor.blue.color,
-        .warning: .warning,
+        .warning: .warningDark,
         .danger: .dangerDark,
         .disabled: .disabledDark,
         .backgroundPrimary: .oceanDark2,

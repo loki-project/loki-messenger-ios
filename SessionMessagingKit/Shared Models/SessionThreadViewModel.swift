@@ -5,6 +5,7 @@
 import Foundation
 import GRDB
 import DifferenceKit
+import SessionUIKit
 import SessionUtilitiesKit
 
 fileprivate typealias ViewModel = SessionThreadViewModel
@@ -15,7 +16,7 @@ fileprivate typealias ViewModel = SessionThreadViewModel
 ///
 /// **Note:** When updating the UI make sure to check the actual queries being run as some fields will have incorrect default values
 /// in order to optimise their queries to only include the required data
-public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equatable, Hashable, Identifiable, Differentiable, ColumnExpressible {
+public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equatable, Hashable, Identifiable, Differentiable, ColumnExpressible, ThreadSafeType {
     public typealias Columns = CodingKeys
     public enum CodingKeys: String, CodingKey, ColumnExpression, CaseIterable {
         case rowId
@@ -34,30 +35,36 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
         case threadMutedUntilTimestamp
         case threadOnlyNotifyForMentions
         case threadMessageDraft
+        case threadIsDraft
         
         case threadContactIsTyping
         case threadWasMarkedUnread
         case threadUnreadCount
         case threadUnreadMentionCount
         case threadHasUnreadMessagesOfAnyKind
+        case threadCanWrite
         
         // Thread display info
         
         case disappearingMessagesConfiguration
         
+        case contactLastKnownClientVersion
+        case displayPictureFilename
         case contactProfile
         case closedGroupProfileFront
         case closedGroupProfileBack
         case closedGroupProfileBackFallback
+        case closedGroupAdminProfile
         case closedGroupName
+        case closedGroupDescription
         case closedGroupUserCount
         case currentUserIsClosedGroupMember
         case currentUserIsClosedGroupAdmin
         case openGroupName
+        case openGroupDescription
         case openGroupServer
         case openGroupRoomToken
         case openGroupPublicKey
-        case openGroupProfilePictureData
         case openGroupUserCount
         case openGroupPermissions
         
@@ -76,10 +83,35 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
         case authorId
         case threadContactNameInternal
         case authorNameInternal
-        case currentUserPublicKey
-        case currentUserBlinded15PublicKey
-        case currentUserBlinded25PublicKey
+        case currentUserSessionId
+        case currentUserBlinded15SessionId
+        case currentUserBlinded25SessionId
         case recentReactionEmoji
+        case wasKickedFromGroup
+        case groupIsDestroyed
+    }
+    
+    public struct MessageInputState: Equatable {
+        public let allowedInputTypes: MessageInputTypes
+        public let message: String?
+        public let accessibility: Accessibility?
+        public let messageAccessibility: Accessibility?
+        
+        public static var all: MessageInputState = MessageInputState(allowedInputTypes: .all)
+        
+        // MARK: - Initialization
+        
+        init(
+            allowedInputTypes: MessageInputTypes,
+            message: String? = nil,
+            accessibility: Accessibility? = nil,
+            messageAccessibility: Accessibility? = nil
+        ) {
+            self.allowedInputTypes = allowedInputTypes
+            self.message = message
+            self.accessibility = accessibility
+            self.messageAccessibility = messageAccessibility
+        }
     }
     
     public var differenceIdentifier: String { threadId }
@@ -92,7 +124,6 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
     public let threadMemberNames: String?
     
     public let threadIsNoteToSelf: Bool
-    
     public let outdatedMemberId: String?
     
     /// This flag indicates whether the thread is an outgoing message request
@@ -106,48 +137,36 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
     public let threadMutedUntilTimestamp: TimeInterval?
     public let threadOnlyNotifyForMentions: Bool?
     public let threadMessageDraft: String?
+    public let threadIsDraft: Bool?
     
     public let threadContactIsTyping: Bool?
     public let threadWasMarkedUnread: Bool?
     public let threadUnreadCount: UInt?
     public let threadUnreadMentionCount: UInt?
     public let threadHasUnreadMessagesOfAnyKind: Bool?
-    
-    public var canWrite: Bool {
-        switch threadVariant {
-            case .contact:
-                guard threadIsMessageRequest == true else { return true }
-                
-                return (profile?.blocksCommunityMessageRequests != true)
-                
-            case .legacyGroup, .group:
-                return (
-                    currentUserIsClosedGroupMember == true &&
-                    interactionVariant?.isGroupLeavingStatus != true
-                )
-                
-            case .community:
-                return (openGroupPermissions?.contains(.write) ?? false)
-        }
-    }
+    public let threadCanWrite: Bool?
     
     // Thread display info
     
     public let disappearingMessagesConfiguration: DisappearingMessagesConfiguration?
     
+    public let contactLastKnownClientVersion: FeatureVersion?
+    public let displayPictureFilename: String?
     private let contactProfile: Profile?
     private let closedGroupProfileFront: Profile?
     private let closedGroupProfileBack: Profile?
     private let closedGroupProfileBackFallback: Profile?
+    public let closedGroupAdminProfile: Profile?
     public let closedGroupName: String?
+    private let closedGroupDescription: String?
     private let closedGroupUserCount: Int?
     public let currentUserIsClosedGroupMember: Bool?
     public let currentUserIsClosedGroupAdmin: Bool?
     public let openGroupName: String?
+    private let openGroupDescription: String?
     public let openGroupServer: String?
     public let openGroupRoomToken: String?
     public let openGroupPublicKey: String?
-    public let openGroupProfilePictureData: Data?
     private let openGroupUserCount: Int?
     private let openGroupPermissions: OpenGroup.Permissions?
     
@@ -166,10 +185,12 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
     public let authorId: String?
     private let threadContactNameInternal: String?
     private let authorNameInternal: String?
-    public let currentUserPublicKey: String
-    public let currentUserBlinded15PublicKey: String?
-    public let currentUserBlinded25PublicKey: String?
+    public let currentUserSessionId: String
+    public let currentUserBlinded15SessionId: String?
+    public let currentUserBlinded25SessionId: String?
     public let recentReactionEmoji: [String]?
+    public let wasKickedFromGroup: Bool?
+    public let groupIsDestroyed: Bool?
     
     // UI specific logic
     
@@ -182,6 +203,14 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
             isNoteToSelf: threadIsNoteToSelf,
             profile: profile
         )
+    }
+    
+    public var threadDescription: String? {
+        switch threadVariant {
+            case .contact, .legacyGroup: return nil
+            case .community: return openGroupDescription
+            case .group: return closedGroupDescription
+        }
     }
     
     public var profile: Profile? {
@@ -205,15 +234,26 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
             return Date(timeIntervalSince1970: threadCreationDateTimestamp)
         }
                         
-        return Date(timeIntervalSince1970: (TimeInterval(interactionTimestampMs) / 1000))
+        return Date(timeIntervalSince1970: TimeInterval(Double(interactionTimestampMs) / 1000))
     }
     
-    public var enabledMessageTypes: MessageInputTypes {
-        guard !threadIsNoteToSelf else { return .all }
+    public var messageInputState: MessageInputState {
+        guard !threadIsNoteToSelf else { return MessageInputState(allowedInputTypes: .all) }
+        guard threadIsBlocked != true else {
+            return MessageInputState(
+                allowedInputTypes: .none,
+                message: "blockBlockedDescription".localized(),
+                messageAccessibility: Accessibility(
+                    identifier: "Blocked banner"
+                )
+            )
+        }
         
-        return (threadRequiresApproval == false && threadIsMessageRequest == false ?
-            .all :
-            .textOnly
+        return MessageInputState(
+            allowedInputTypes: (threadRequiresApproval == false && threadIsMessageRequest == false ?
+                .all :
+                .textOnly
+            )
         )
     }
     
@@ -272,21 +312,22 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
     }
     
     /// This method marks a thread as read and depending on the target may also update the interactions within a thread as read
-    public func markAsRead(target: ReadTarget) {
+    public func markAsRead(target: ReadTarget, using dependencies: Dependencies) {
         // Store the logic to mark a thread as read (to paths need to run this)
         let threadId: String = self.threadId
         let threadWasMarkedUnread: Bool? = self.threadWasMarkedUnread
-        let markThreadAsReadIfNeeded: () -> () = {
+        let markThreadAsReadIfNeeded: (Dependencies) -> () = { dependencies in
             // Only make this change if needed (want to avoid triggering a thread update
             // if not needed)
             guard threadWasMarkedUnread == true else { return }
             
-            Storage.shared.writeAsync { db in
+            dependencies[singleton: .storage].writeAsync { db in
                 try SessionThread
                     .filter(id: threadId)
                     .updateAllAndConfig(
                         db,
-                        SessionThread.Columns.markedAsUnread.set(to: false)
+                        SessionThread.Columns.markedAsUnread.set(to: false),
+                        using: dependencies
                     )
             }
         }
@@ -294,7 +335,7 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
         // Determine what we want to mark as read
         switch target {
             // Only mark the thread as read
-            case .thread: markThreadAsReadIfNeeded()
+            case .thread: markThreadAsReadIfNeeded(dependencies)
             
             // We want to mark both the thread and interactions as read
             case .threadAndInteractions(let interactionId):
@@ -303,7 +344,7 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
                     let targetInteractionId: Int64 = (interactionId ?? self.interactionId)
                 else {
                     // No unread interactions so just mark the thread as read if needed
-                    markThreadAsReadIfNeeded()
+                    markThreadAsReadIfNeeded(dependencies)
                     return
                 }
                 
@@ -312,8 +353,8 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
                 let threadIsBlocked: Bool? = self.threadIsBlocked
                 let threadIsMessageRequest: Bool? = self.threadIsMessageRequest
                 
-                Storage.shared.writeAsync { db in
-                    markThreadAsReadIfNeeded()
+                dependencies[singleton: .storage].writeAsync { db in
+                    markThreadAsReadIfNeeded(dependencies)
                     
                     try Interaction.markAsRead(
                         db,
@@ -326,26 +367,75 @@ public struct SessionThreadViewModel: FetchableRecordWithRowId, Decodable, Equat
                             threadId: threadId,
                             threadVariant: threadVariant,
                             isBlocked: threadIsBlocked,
-                            isMessageRequest: threadIsMessageRequest
-                        )
+                            isMessageRequest: threadIsMessageRequest,
+                            using: dependencies
+                        ),
+                        using: dependencies
                     )
                 }
         }
     }
     
     /// This method will mark a thread as read
-    public func markAsUnread() {
+    public func markAsUnread(using dependencies: Dependencies) {
         guard self.threadWasMarkedUnread != true else { return }
         
         let threadId: String = self.threadId
         
-        Storage.shared.writeAsync { db in
+        dependencies[singleton: .storage].writeAsync { db in
             try SessionThread
                 .filter(id: threadId)
                 .updateAllAndConfig(
                     db,
-                    SessionThread.Columns.markedAsUnread.set(to: true)
+                    SessionThread.Columns.markedAsUnread.set(to: true),
+                    using: dependencies
                 )
+        }
+    }
+    
+    // MARK: - Functions
+    
+    /// This function should only be called when initially creating/populating the `SessionThreadViewModel`, instead use
+    /// `threadCanWrite == true` to determine whether the user should be able to write to a thread, this function uses
+    /// external data to determine if the user can write so the result might differ from the original value when the
+    /// `SessionThreadViewModel` was created
+    public func determineInitialCanWriteFlag(using dependencies: Dependencies) -> Bool {
+        switch threadVariant {
+            case .contact:
+                guard threadIsMessageRequest == true else { return true }
+                
+                return (profile?.blocksCommunityMessageRequests != true)
+                
+            case .legacyGroup:
+                guard threadIsMessageRequest == false else { return true }
+                
+                return (
+                    currentUserIsClosedGroupMember == true &&
+                    interactionVariant?.isGroupLeavingStatus != true
+                )
+                
+            case .group:
+                guard groupIsDestroyed != true else { return false }
+                guard wasKickedFromGroup != true else { return false }
+                guard threadIsMessageRequest == false else { return true }
+                
+                // Double check LibSession directly just in case we the view model hasn't been
+                // updated since they were changed
+                guard
+                    !LibSession.wasKickedFromGroup(
+                        groupSessionId: SessionId(.group, hex: threadId),
+                        using: dependencies
+                    ) &&
+                    !LibSession.groupIsDestroyed(
+                        groupSessionId: SessionId(.group, hex: threadId),
+                        using: dependencies
+                    )
+                else { return false }
+                
+                return interactionVariant?.isGroupLeavingStatus != true
+                
+            case .community:
+                return (openGroupPermissions?.contains(.write) ?? false)
         }
     }
 }
@@ -361,14 +451,18 @@ public extension SessionThreadViewModel {
         threadId: String,
         threadVariant: SessionThread.Variant? = nil,
         threadIsNoteToSelf: Bool = false,
+        threadIsMessageRequest: Bool? = nil,
         threadIsBlocked: Bool? = nil,
         contactProfile: Profile? = nil,
+        closedGroupAdminProfile: Profile? = nil,
         currentUserIsClosedGroupMember: Bool? = nil,
         currentUserIsClosedGroupAdmin: Bool? = nil,
         openGroupPermissions: OpenGroup.Permissions? = nil,
         unreadCount: UInt = 0,
         hasUnreadMessagesOfAnyKind: Bool = false,
-        disappearingMessagesConfiguration: DisappearingMessagesConfiguration? = nil
+        threadCanWrite: Bool = true,
+        disappearingMessagesConfiguration: DisappearingMessagesConfiguration? = nil,
+        using dependencies: Dependencies
     ) {
         self.rowId = -1
         self.threadId = threadId
@@ -378,7 +472,7 @@ public extension SessionThreadViewModel {
         
         self.threadIsNoteToSelf = threadIsNoteToSelf
         self.outdatedMemberId = nil
-        self.threadIsMessageRequest = false
+        self.threadIsMessageRequest = threadIsMessageRequest
         self.threadRequiresApproval = false
         self.threadShouldBeVisible = false
         self.threadPinnedPriority = 0
@@ -386,30 +480,36 @@ public extension SessionThreadViewModel {
         self.threadMutedUntilTimestamp = nil
         self.threadOnlyNotifyForMentions = nil
         self.threadMessageDraft = nil
+        self.threadIsDraft = nil
         
         self.threadContactIsTyping = nil
         self.threadWasMarkedUnread = nil
         self.threadUnreadCount = unreadCount
         self.threadUnreadMentionCount = nil
         self.threadHasUnreadMessagesOfAnyKind = hasUnreadMessagesOfAnyKind
+        self.threadCanWrite = threadCanWrite
         
         // Thread display info
         
         self.disappearingMessagesConfiguration = disappearingMessagesConfiguration
         
+        self.contactLastKnownClientVersion = nil
+        self.displayPictureFilename = nil
         self.contactProfile = contactProfile
         self.closedGroupProfileFront = nil
         self.closedGroupProfileBack = nil
         self.closedGroupProfileBackFallback = nil
+        self.closedGroupAdminProfile = closedGroupAdminProfile
         self.closedGroupName = nil
+        self.closedGroupDescription = nil
         self.closedGroupUserCount = nil
         self.currentUserIsClosedGroupMember = currentUserIsClosedGroupMember
         self.currentUserIsClosedGroupAdmin = currentUserIsClosedGroupAdmin
         self.openGroupName = nil
+        self.openGroupDescription = nil
         self.openGroupServer = nil
         self.openGroupRoomToken = nil
         self.openGroupPublicKey = nil
-        self.openGroupProfilePictureData = nil
         self.openGroupUserCount = nil
         self.openGroupPermissions = openGroupPermissions
         
@@ -428,10 +528,12 @@ public extension SessionThreadViewModel {
         self.authorId = nil
         self.threadContactNameInternal = nil
         self.authorNameInternal = nil
-        self.currentUserPublicKey = getUserHexEncodedPublicKey()
-        self.currentUserBlinded15PublicKey = nil
-        self.currentUserBlinded25PublicKey = nil
+        self.currentUserSessionId = dependencies[cache: .general].sessionId.hexString
+        self.currentUserBlinded15SessionId = nil
+        self.currentUserBlinded25SessionId = nil
         self.recentReactionEmoji = nil
+        self.wasKickedFromGroup = false
+        self.groupIsDestroyed = false
     }
 }
 
@@ -457,25 +559,31 @@ public extension SessionThreadViewModel {
             threadMutedUntilTimestamp: self.threadMutedUntilTimestamp,
             threadOnlyNotifyForMentions: self.threadOnlyNotifyForMentions,
             threadMessageDraft: self.threadMessageDraft,
+            threadIsDraft: self.threadIsDraft,
             threadContactIsTyping: self.threadContactIsTyping,
             threadWasMarkedUnread: self.threadWasMarkedUnread,
             threadUnreadCount: self.threadUnreadCount,
             threadUnreadMentionCount: self.threadUnreadMentionCount,
             threadHasUnreadMessagesOfAnyKind: self.threadHasUnreadMessagesOfAnyKind,
+            threadCanWrite: self.threadCanWrite,
             disappearingMessagesConfiguration: self.disappearingMessagesConfiguration,
+            contactLastKnownClientVersion: self.contactLastKnownClientVersion,
+            displayPictureFilename: self.displayPictureFilename,
             contactProfile: self.contactProfile,
             closedGroupProfileFront: self.closedGroupProfileFront,
             closedGroupProfileBack: self.closedGroupProfileBack,
             closedGroupProfileBackFallback: self.closedGroupProfileBackFallback,
+            closedGroupAdminProfile: self.closedGroupAdminProfile,
             closedGroupName: self.closedGroupName,
+            closedGroupDescription: self.closedGroupDescription,
             closedGroupUserCount: self.closedGroupUserCount,
             currentUserIsClosedGroupMember: self.currentUserIsClosedGroupMember,
             currentUserIsClosedGroupAdmin: self.currentUserIsClosedGroupAdmin,
             openGroupName: self.openGroupName,
+            openGroupDescription: self.openGroupDescription,
             openGroupServer: self.openGroupServer,
             openGroupRoomToken: self.openGroupRoomToken,
             openGroupPublicKey: self.openGroupPublicKey,
-            openGroupProfilePictureData: self.openGroupProfilePictureData,
             openGroupUserCount: self.openGroupUserCount,
             openGroupPermissions: self.openGroupPermissions,
             interactionId: self.interactionId,
@@ -490,17 +598,23 @@ public extension SessionThreadViewModel {
             authorId: self.authorId,
             threadContactNameInternal: self.threadContactNameInternal,
             authorNameInternal: self.authorNameInternal,
-            currentUserPublicKey: self.currentUserPublicKey,
-            currentUserBlinded15PublicKey: self.currentUserBlinded15PublicKey,
-            currentUserBlinded25PublicKey: self.currentUserBlinded25PublicKey,
-            recentReactionEmoji: (recentReactionEmoji ?? self.recentReactionEmoji)
+            currentUserSessionId: self.currentUserSessionId,
+            currentUserBlinded15SessionId: self.currentUserBlinded15SessionId,
+            currentUserBlinded25SessionId: self.currentUserBlinded25SessionId,
+            recentReactionEmoji: (recentReactionEmoji ?? self.recentReactionEmoji),
+            wasKickedFromGroup: self.wasKickedFromGroup,
+            groupIsDestroyed: self.groupIsDestroyed
         )
     }
     
-    func populatingCurrentUserBlindedKeys(
+    func populatingPostQueryData(
         _ db: Database? = nil,
-        currentUserBlinded15PublicKeyForThisThread: String? = nil,
-        currentUserBlinded25PublicKeyForThisThread: String? = nil
+        currentUserBlinded15SessionIdForThisThread: String?,
+        currentUserBlinded25SessionIdForThisThread: String?,
+        wasKickedFromGroup: Bool,
+        groupIsDestroyed: Bool,
+        threadCanWrite: Bool,
+        using dependencies: Dependencies
     ) -> SessionThreadViewModel {
         return SessionThreadViewModel(
             rowId: self.rowId,
@@ -518,25 +632,31 @@ public extension SessionThreadViewModel {
             threadMutedUntilTimestamp: self.threadMutedUntilTimestamp,
             threadOnlyNotifyForMentions: self.threadOnlyNotifyForMentions,
             threadMessageDraft: self.threadMessageDraft,
+            threadIsDraft: self.threadIsDraft,
             threadContactIsTyping: self.threadContactIsTyping,
             threadWasMarkedUnread: self.threadWasMarkedUnread,
             threadUnreadCount: self.threadUnreadCount,
             threadUnreadMentionCount: self.threadUnreadMentionCount,
             threadHasUnreadMessagesOfAnyKind: self.threadHasUnreadMessagesOfAnyKind,
+            threadCanWrite: threadCanWrite,
             disappearingMessagesConfiguration: self.disappearingMessagesConfiguration,
+            contactLastKnownClientVersion: self.contactLastKnownClientVersion,
+            displayPictureFilename: self.displayPictureFilename,
             contactProfile: self.contactProfile,
             closedGroupProfileFront: self.closedGroupProfileFront,
             closedGroupProfileBack: self.closedGroupProfileBack,
             closedGroupProfileBackFallback: self.closedGroupProfileBackFallback,
+            closedGroupAdminProfile: self.closedGroupAdminProfile,
             closedGroupName: self.closedGroupName,
+            closedGroupDescription: self.closedGroupDescription,
             closedGroupUserCount: self.closedGroupUserCount,
             currentUserIsClosedGroupMember: self.currentUserIsClosedGroupMember,
             currentUserIsClosedGroupAdmin: self.currentUserIsClosedGroupAdmin,
             openGroupName: self.openGroupName,
+            openGroupDescription: self.openGroupDescription,
             openGroupServer: self.openGroupServer,
             openGroupRoomToken: self.openGroupRoomToken,
             openGroupPublicKey: self.openGroupPublicKey,
-            openGroupProfilePictureData: self.openGroupProfilePictureData,
             openGroupUserCount: self.openGroupUserCount,
             openGroupPermissions: self.openGroupPermissions,
             interactionId: self.interactionId,
@@ -551,26 +671,30 @@ public extension SessionThreadViewModel {
             authorId: self.authorId,
             threadContactNameInternal: self.threadContactNameInternal,
             authorNameInternal: self.authorNameInternal,
-            currentUserPublicKey: self.currentUserPublicKey,
-            currentUserBlinded15PublicKey: (
-                currentUserBlinded15PublicKeyForThisThread ??
-                SessionThread.getUserHexEncodedBlindedKey(
+            currentUserSessionId: self.currentUserSessionId,
+            currentUserBlinded15SessionId: (
+                currentUserBlinded15SessionIdForThisThread ??
+                SessionThread.getCurrentUserBlindedSessionId(
                     db,
                     threadId: self.threadId,
                     threadVariant: self.threadVariant,
-                    blindingPrefix: .blinded15
-                )
+                    blindingPrefix: .blinded15,
+                    using: dependencies
+                )?.hexString
             ),
-            currentUserBlinded25PublicKey: (
-                currentUserBlinded25PublicKeyForThisThread ??
-                SessionThread.getUserHexEncodedBlindedKey(
+            currentUserBlinded25SessionId: (
+                currentUserBlinded25SessionIdForThisThread ??
+                SessionThread.getCurrentUserBlindedSessionId(
                     db,
                     threadId: self.threadId,
                     threadVariant: self.threadVariant,
-                    blindingPrefix: .blinded25
-                )
+                    blindingPrefix: .blinded25,
+                    using: dependencies
+                )?.hexString
             ),
-            recentReactionEmoji: self.recentReactionEmoji
+            recentReactionEmoji: self.recentReactionEmoji,
+            wasKickedFromGroup: wasKickedFromGroup,
+            groupIsDestroyed: groupIsDestroyed
         )
     }
 }
@@ -593,7 +717,7 @@ private struct AggregateInteraction: Decodable, ColumnExpressible {
     let interactionTimestampMs: Int64
     let threadUnreadCount: UInt?
     let threadUnreadMentionCount: UInt?
-    let threadHasUnreadMessagesOfAnyKind: Bool
+    let threadHasUnreadMessagesOfAnyKind: Bool?
 }
 
 // MARK: - ClosedGroupUserCount
@@ -630,7 +754,7 @@ public extension SessionThreadViewModel {
     /// **Note:** This query **will not** include deleted incoming messages in it's unread count (they should never be marked as unread
     /// but including this warning just in case there is a discrepancy)
     static func baseQuery(
-        userPublicKey: String,
+        userSessionId: SessionId,
         groupSQL: SQL,
         orderSQL: SQL
     ) -> (([Int64]) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>>) {
@@ -650,6 +774,7 @@ public extension SessionThreadViewModel {
             let closedGroupProfileFront: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileFront)
             let closedGroupProfileBack: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBack)
             let closedGroupProfileBackFallback: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBackFallback)
+            let closedGroupAdminProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupAdminProfile)
             let groupMember: TypedTableAlias<GroupMember> = TypedTableAlias()
             let openGroup: TypedTableAlias<OpenGroup> = TypedTableAlias()
             
@@ -666,17 +791,19 @@ public extension SessionThreadViewModel {
                     \(thread[.variant]) AS \(ViewModel.Columns.threadVariant),
                     \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
 
-                    (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                    (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                     IFNULL(\(thread[.pinnedPriority]), 0) AS \(ViewModel.Columns.threadPinnedPriority),
                     \(contact[.isBlocked]) AS \(ViewModel.Columns.threadIsBlocked),
                     \(thread[.mutedUntilTimestamp]) AS \(ViewModel.Columns.threadMutedUntilTimestamp),
                     \(thread[.onlyNotifyForMentions]) AS \(ViewModel.Columns.threadOnlyNotifyForMentions),
                     (
-                        \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
-                        \(SQL("\(thread[.id]) != \(userPublicKey)")) AND
-                        IFNULL(\(contact[.isApproved]), false) = false
+                        COALESCE(\(closedGroup[.invited]), false) = true OR (
+                            \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
+                            \(SQL("\(thread[.id]) != \(userSessionId.hexString)")) AND
+                            IFNULL(\(contact[.isApproved]), false) = false
+                        )
                     ) AS \(ViewModel.Columns.threadIsMessageRequest),
-            
+                    
                     (\(typingIndicator[.threadId]) IS NOT NULL) AS \(ViewModel.Columns.threadContactIsTyping),
                     \(thread[.markedAsUnread]) AS \(ViewModel.Columns.threadWasMarkedUnread),
                     \(aggregateInteraction[.threadUnreadCount]),
@@ -687,6 +814,7 @@ public extension SessionThreadViewModel {
                     \(closedGroupProfileFront.allColumns),
                     \(closedGroupProfileBack.allColumns),
                     \(closedGroupProfileBackFallback.allColumns),
+                    \(closedGroupAdminProfile.allColumns),
                     \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
 
                     EXISTS (
@@ -695,7 +823,7 @@ public extension SessionThreadViewModel {
                         WHERE (
                             \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                             \(SQL("\(groupMember[.role]) != \(GroupMember.Role.zombie)")) AND
-                            \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                            \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)"))
                         )
                     ) AS \(ViewModel.Columns.currentUserIsClosedGroupMember),
 
@@ -705,12 +833,25 @@ public extension SessionThreadViewModel {
                         WHERE (
                             \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                             \(SQL("\(groupMember[.role]) = \(GroupMember.Role.admin)")) AND
-                            \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                            \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)")) AND (
+                                (
+                                    -- Legacy groups don't have a 'roleStatus' so just let those through
+                                    -- based solely on the 'role'
+                                    \(groupMember[.groupId]) > \(SessionId.Prefix.standard.rawValue) AND
+                                    \(groupMember[.groupId]) < \(SessionId.Prefix.standard.endOfRangeString)
+                                ) OR
+                                \(SQL("\(groupMember[.roleStatus]) = \(GroupMember.RoleStatus.accepted)"))
+                            )
                         )
                     ) AS \(ViewModel.Columns.currentUserIsClosedGroupAdmin),
 
                     \(openGroup[.name]) AS \(ViewModel.Columns.openGroupName),
-                    \(openGroup[.imageData]) AS \(ViewModel.Columns.openGroupProfilePictureData),
+            
+                    COALESCE(
+                        \(openGroup[.displayPictureFilename]),
+                        \(closedGroup[.displayPictureFilename]),
+                        \(contactProfile[.profilePictureFileName])
+                    ) AS \(ViewModel.Columns.displayPictureFilename),
 
                     \(interaction[.id]) AS \(ViewModel.Columns.interactionId),
                     \(interaction[.variant]) AS \(ViewModel.Columns.interactionVariant),
@@ -730,7 +871,7 @@ public extension SessionThreadViewModel {
                     \(interaction[.authorId]),
                     IFNULL(\(contactProfile[.nickname]), \(contactProfile[.name])) AS \(ViewModel.Columns.threadContactNameInternal),
                     IFNULL(\(profile[.nickname]), \(profile[.name])) AS \(ViewModel.Columns.authorNameInternal),
-                    \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                    \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
 
                 FROM \(SessionThread.self)
                 LEFT JOIN \(Contact.self) ON \(contact[.id]) = \(thread[.id])
@@ -744,8 +885,9 @@ public extension SessionThreadViewModel {
                         SUM(\(interaction[.wasRead]) = false) AS \(AggregateInteraction.Columns.threadUnreadCount),
                         SUM(\(interaction[.wasRead]) = false AND \(interaction[.hasMention]) = true) AS \(AggregateInteraction.Columns.threadUnreadMentionCount),
                         (SUM(\(interaction[.wasRead]) = false) > 0) AS \(AggregateInteraction.Columns.threadHasUnreadMessagesOfAnyKind)
+            
                     FROM \(Interaction.self)
-                    WHERE \(SQL("\(interaction[.variant]) != \(Interaction.Variant.standardIncomingDeleted)"))
+                    WHERE \(SQL("\(interaction[.variant]) IN \(Interaction.Variant.variantsToShowConversationSnippet)"))
                     GROUP BY \(interaction[.threadId])
                 ) AS \(aggregateInteraction) ON \(aggregateInteraction[.threadId]) = \(thread[.id])
                 
@@ -781,7 +923,7 @@ public extension SessionThreadViewModel {
                         WHERE (
                             \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                             \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
-                            \(SQL("\(groupMember[.profileId]) != \(userPublicKey)"))
+                            \(SQL("\(groupMember[.profileId]) != \(userSessionId.hexString)"))
                         )
                     )
                 )
@@ -794,14 +936,25 @@ public extension SessionThreadViewModel {
                         WHERE (
                             \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                             \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
-                            \(SQL("\(groupMember[.profileId]) != \(userPublicKey)"))
+                            \(SQL("\(groupMember[.profileId]) != \(userSessionId.hexString)"))
                         )
                     )
                 )
                 LEFT JOIN \(closedGroupProfileBackFallback) ON (
                     \(closedGroup[.threadId]) IS NOT NULL AND
                     \(closedGroupProfileBack[.id]) IS NULL AND
-                    \(closedGroupProfileBackFallback[.id]) = \(SQL("\(userPublicKey)"))
+                    \(closedGroupProfileBackFallback[.id]) = \(SQL("\(userSessionId.hexString)"))
+                )
+                LEFT JOIN \(closedGroupAdminProfile) ON (
+                    \(closedGroupAdminProfile[.id]) = (
+                        SELECT MIN(\(groupMember[.profileId]))
+                        FROM \(GroupMember.self)
+                        JOIN \(Profile.self) ON \(profile[.id]) = \(groupMember[.profileId])
+                        WHERE (
+                            \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
+                            \(SQL("\(groupMember[.role]) = \(GroupMember.Role.admin)"))
+                        )
+                    )
                 )
 
                 WHERE \(thread[.rowId]) IN \(rowIds)
@@ -816,6 +969,7 @@ public extension SessionThreadViewModel {
                     Profile.numberOfSelectedColumns(db),
                     Profile.numberOfSelectedColumns(db),
                     Profile.numberOfSelectedColumns(db),
+                    Profile.numberOfSelectedColumns(db),
                     numColumnsBetweenProfilesAndAttachmentInfo,
                     Attachment.DescriptionInfo.numberOfSelectedColumns()
                 ])
@@ -825,7 +979,8 @@ public extension SessionThreadViewModel {
                     .closedGroupProfileFront: adapters[2],
                     .closedGroupProfileBack: adapters[3],
                     .closedGroupProfileBackFallback: adapters[4],
-                    .interactionAttachmentDescriptionInfo: adapters[6]
+                    .closedGroupAdminProfile: adapters[5],
+                    .interactionAttachmentDescriptionInfo: adapters[7]
                 ])
             }
         }
@@ -834,47 +989,54 @@ public extension SessionThreadViewModel {
     static var optimisedJoinSQL: SQL = {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contact: TypedTableAlias<Contact> = TypedTableAlias()
+        let closedGroup: TypedTableAlias<ClosedGroup> = TypedTableAlias()
         let interaction: TypedTableAlias<Interaction> = TypedTableAlias()
         
         let timestampMsColumnLiteral: SQL = SQL(stringLiteral: Interaction.Columns.timestampMs.name)
         
         return """
             LEFT JOIN \(Contact.self) ON \(contact[.id]) = \(thread[.id])
+            LEFT JOIN \(ClosedGroup.self) ON \(closedGroup[.threadId]) = \(thread[.id])
             LEFT JOIN (
                 SELECT
                     \(interaction[.threadId]),
                     MAX(\(interaction[.timestampMs])) AS \(timestampMsColumnLiteral)
                 FROM \(Interaction.self)
-                WHERE \(SQL("\(interaction[.variant]) != \(Interaction.Variant.standardIncomingDeleted)"))
+                WHERE \(SQL("\(interaction[.variant]) IN \(Interaction.Variant.variantsToShowConversationSnippet)"))
                 GROUP BY \(interaction[.threadId])
             ) AS \(Interaction.self) ON \(interaction[.threadId]) = \(thread[.id])
         """
     }()
     
-    static func homeFilterSQL(userPublicKey: String) -> SQL {
+    static func homeFilterSQL(userSessionId: SessionId) -> SQL {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contact: TypedTableAlias<Contact> = TypedTableAlias()
+        let closedGroup: TypedTableAlias<ClosedGroup> = TypedTableAlias()
         
         return """
-            \(thread[.shouldBeVisible]) = true AND (
-                -- Is not a message request
+            \(thread[.shouldBeVisible]) = true AND
+            -- Is not a message request
+            COALESCE(\(closedGroup[.invited]), false) = false AND (
                 \(SQL("\(thread[.variant]) != \(SessionThread.Variant.contact)")) OR
-                \(SQL("\(thread[.id]) = \(userPublicKey)")) OR
+                \(SQL("\(thread[.id]) = \(userSessionId.hexString)")) OR
                 \(contact[.isApproved]) = true
             )
         """
     }
     
-    static func messageRequestsFilterSQL(userPublicKey: String) -> SQL {
+    static func messageRequestsFilterSQL(userSessionId: SessionId) -> SQL {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contact: TypedTableAlias<Contact> = TypedTableAlias()
+        let closedGroup: TypedTableAlias<ClosedGroup> = TypedTableAlias()
         
         return """
             \(thread[.shouldBeVisible]) = true AND (
                 -- Is a message request
-                \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
-                \(SQL("\(thread[.id]) != \(userPublicKey)")) AND
-                IFNULL(\(contact[.isApproved]), false) = false
+                COALESCE(\(closedGroup[.invited]), false) = true OR (
+                    \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
+                    \(SQL("\(thread[.id]) != \(userSessionId.hexString)")) AND
+                    IFNULL(\(contact[.isApproved]), false) = false
+                )
             )
         """
     }
@@ -908,7 +1070,7 @@ public extension SessionThreadViewModel {
 public extension SessionThreadViewModel {
     /// **Note:** This query **will** include deleted incoming messages in it's unread count (they should never be marked as unread
     /// but including this warning just in case there is a discrepancy)
-    static func conversationQuery(threadId: String, userPublicKey: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func conversationQuery(threadId: String, userSessionId: SessionId) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let disappearingMessagesConfiguration: TypedTableAlias<DisappearingMessagesConfiguration> = TypedTableAlias()
         let contact: TypedTableAlias<Contact> = TypedTableAlias()
@@ -924,7 +1086,7 @@ public extension SessionThreadViewModel {
         /// the `disappearingMessageSConfiguration` entry below otherwise the query will fail to parse and might throw
         ///
         /// Explicitly set default values for the fields ignored for search results
-        let numColumnsBeforeProfiles: Int = 17
+        let numColumnsBeforeProfiles: Int = 18
         let request: SQLRequest<ViewModel> = """
             SELECT
                 \(thread[.rowId]) AS \(ViewModel.Columns.rowId),
@@ -932,7 +1094,7 @@ public extension SessionThreadViewModel {
                 \(thread[.variant]) AS \(ViewModel.Columns.threadVariant),
                 \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
                 
-                (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                 (
                     SELECT \(contactProfile[.id])
                     FROM \(contactProfile.self)
@@ -941,14 +1103,16 @@ public extension SessionThreadViewModel {
                     WHERE (
                         (\(groupMember[.profileId]) = \(contactProfile[.id]) OR
                         \(contact[.id]) = \(threadId)) AND
-                        \(contact[.id]) <> \(userPublicKey) AND
+                        \(contact[.id]) <> \(userSessionId.hexString) AND
                         \(contact[.lastKnownClientVersion]) = \(FeatureVersion.legacyDisappearingMessages)
                     )
                 ) AS \(ViewModel.Columns.outdatedMemberId),
                 (
-                    \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
-                    \(SQL("\(thread[.id]) != \(userPublicKey)")) AND
-                    IFNULL(\(contact[.isApproved]), false) = false
+                    COALESCE(\(closedGroup[.invited]), false) = true OR (
+                        \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
+                        \(SQL("\(thread[.id]) != \(userSessionId.hexString)")) AND
+                        IFNULL(\(contact[.isApproved]), false) = false
+                    )
                 ) AS \(ViewModel.Columns.threadIsMessageRequest),
                 (
                     \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
@@ -961,14 +1125,15 @@ public extension SessionThreadViewModel {
                 \(thread[.mutedUntilTimestamp]) AS \(ViewModel.Columns.threadMutedUntilTimestamp),
                 \(thread[.onlyNotifyForMentions]) AS \(ViewModel.Columns.threadOnlyNotifyForMentions),
                 \(thread[.messageDraft]) AS \(ViewModel.Columns.threadMessageDraft),
+                \(thread[.isDraft]) AS \(ViewModel.Columns.threadIsDraft),
                 
                 \(thread[.markedAsUnread]) AS \(ViewModel.Columns.threadWasMarkedUnread),
                 \(aggregateInteraction[.threadUnreadCount]),
                 \(aggregateInteraction[.threadHasUnreadMessagesOfAnyKind]),
         
                 \(disappearingMessagesConfiguration.allColumns),
-            
                 \(contactProfile.allColumns),
+                \(contact[.lastKnownClientVersion]) AS \(ViewModel.Columns.contactLastKnownClientVersion),
                 \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
                 \(closedGroupUserCount[.closedGroupUserCount]),
                 
@@ -978,7 +1143,7 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) != \(GroupMember.Role.zombie)")) AND
-                        \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)"))
                     )
                 ) AS \(ViewModel.Columns.currentUserIsClosedGroupMember),
         
@@ -988,7 +1153,15 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.admin)")) AND
-                        \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)")) AND (
+                            (
+                                -- Legacy groups don't have a 'roleStatus' so just let those through
+                                -- based solely on the 'role'
+                                \(groupMember[.groupId]) > \(SessionId.Prefix.standard.rawValue) AND
+                                \(groupMember[.groupId]) < \(SessionId.Prefix.standard.endOfRangeString)
+                            ) OR
+                            \(SQL("\(groupMember[.roleStatus]) = \(GroupMember.RoleStatus.accepted)"))
+                        )
                     )
                 ) AS \(ViewModel.Columns.currentUserIsClosedGroupAdmin),
                 
@@ -1002,7 +1175,7 @@ public extension SessionThreadViewModel {
                 \(aggregateInteraction[.interactionId]),
                 \(aggregateInteraction[.interactionTimestampMs]),
             
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
             
             FROM \(SessionThread.self)
             LEFT JOIN \(DisappearingMessagesConfiguration.self) ON \(disappearingMessagesConfiguration[.threadId]) = \(thread[.id])
@@ -1028,11 +1201,11 @@ public extension SessionThreadViewModel {
             LEFT JOIN (
                 SELECT
                     \(groupMember[.groupId]),
-                    COUNT(\(groupMember[.rowId])) AS \(ClosedGroupUserCount.Columns.closedGroupUserCount)
+                    COUNT(DISTINCT \(groupMember[.profileId])) AS \(ClosedGroupUserCount.Columns.closedGroupUserCount)
                 FROM \(GroupMember.self)
                 WHERE (
                     \(SQL("\(groupMember[.groupId]) = \(threadId)")) AND
-                    \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)"))
+                    \(SQL("\(groupMember[.role]) != \(GroupMember.Role.zombie)"))
                 )
             ) AS \(closedGroupUserCount) ON \(SQL("\(closedGroupUserCount[.groupId]) = \(threadId)"))
             
@@ -1053,7 +1226,7 @@ public extension SessionThreadViewModel {
         }
     }
     
-    static func conversationSettingsQuery(threadId: String, userPublicKey: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func conversationSettingsQuery(threadId: String, userSessionId: SessionId) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contact: TypedTableAlias<Contact> = TypedTableAlias()
         let contactProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .contactProfile)
@@ -1061,6 +1234,7 @@ public extension SessionThreadViewModel {
         let closedGroupProfileFront: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileFront)
         let closedGroupProfileBack: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBack)
         let closedGroupProfileBackFallback: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBackFallback)
+        let closedGroupAdminProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupAdminProfile)
         let groupMember: TypedTableAlias<GroupMember> = TypedTableAlias()
         let openGroup: TypedTableAlias<OpenGroup> = TypedTableAlias()
         let profile: TypedTableAlias<Profile> = TypedTableAlias()
@@ -1077,7 +1251,7 @@ public extension SessionThreadViewModel {
                 \(thread[.variant]) AS \(ViewModel.Columns.threadVariant),
                 \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
                 
-                (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                 
                 IFNULL(\(thread[.pinnedPriority]), 0) AS \(ViewModel.Columns.threadPinnedPriority),
                 \(contact[.isBlocked]) AS \(ViewModel.Columns.threadIsBlocked),
@@ -1088,7 +1262,10 @@ public extension SessionThreadViewModel {
                 \(closedGroupProfileFront.allColumns),
                 \(closedGroupProfileBack.allColumns),
                 \(closedGroupProfileBackFallback.allColumns),
+                \(closedGroupAdminProfile.allColumns),
+        
                 \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
+                \(closedGroup[.groupDescription]) AS \(ViewModel.Columns.closedGroupDescription),
                 
                 EXISTS (
                     SELECT 1
@@ -1096,7 +1273,7 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) != \(GroupMember.Role.zombie)")) AND
-                        \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)"))
                     )
                 ) AS \(ViewModel.Columns.currentUserIsClosedGroupMember),
 
@@ -1106,17 +1283,31 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.admin)")) AND
-                        \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)")) AND (
+                            (
+                                -- Legacy groups don't have a 'roleStatus' so just let those through
+                                -- based solely on the 'role'
+                                \(groupMember[.groupId]) > \(SessionId.Prefix.standard.rawValue) AND
+                                \(groupMember[.groupId]) < \(SessionId.Prefix.standard.endOfRangeString)
+                            ) OR
+                            \(SQL("\(groupMember[.roleStatus]) = \(GroupMember.RoleStatus.accepted)"))
+                        )
                     )
                 ) AS \(ViewModel.Columns.currentUserIsClosedGroupAdmin),
         
                 \(openGroup[.name]) AS \(ViewModel.Columns.openGroupName),
+                \(openGroup[.roomDescription]) AS \(ViewModel.Columns.openGroupDescription),
                 \(openGroup[.server]) AS \(ViewModel.Columns.openGroupServer),
                 \(openGroup[.roomToken]) AS \(ViewModel.Columns.openGroupRoomToken),
                 \(openGroup[.publicKey]) AS \(ViewModel.Columns.openGroupPublicKey),
-                \(openGroup[.imageData]) AS \(ViewModel.Columns.openGroupProfilePictureData),
+        
+                COALESCE(
+                    \(openGroup[.displayPictureFilename]),
+                    \(closedGroup[.displayPictureFilename]),
+                    \(contactProfile[.profilePictureFileName])
+                ) AS \(ViewModel.Columns.displayPictureFilename),
                     
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
             
             FROM \(SessionThread.self)
             LEFT JOIN \(Contact.self) ON \(contact[.id]) = \(thread[.id])
@@ -1132,7 +1323,7 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
-                        \(SQL("\(groupMember[.profileId]) != \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) != \(userSessionId.hexString)"))
                     )
                 )
             )
@@ -1145,15 +1336,16 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
-                        \(SQL("\(groupMember[.profileId]) != \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) != \(userSessionId.hexString)"))
                     )
                 )
             )
             LEFT JOIN \(closedGroupProfileBackFallback) ON (
                 \(closedGroup[.threadId]) IS NOT NULL AND
                 \(closedGroupProfileBack[.id]) IS NULL AND
-                \(closedGroupProfileBackFallback[.id]) = \(SQL("\(userPublicKey)"))
-            )
+                \(closedGroupProfileBackFallback[.id]) = \(SQL("\(userSessionId.hexString)"))
+            )            
+            LEFT JOIN \(closedGroupAdminProfile.never)
             
             WHERE \(SQL("\(thread[.id]) = \(threadId)"))
         """
@@ -1164,6 +1356,7 @@ public extension SessionThreadViewModel {
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
+                Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db)
             ])
             
@@ -1171,7 +1364,8 @@ public extension SessionThreadViewModel {
                 .contactProfile: adapters[1],
                 .closedGroupProfileFront: adapters[2],
                 .closedGroupProfileBack: adapters[3],
-                .closedGroupProfileBackFallback: adapters[4]
+                .closedGroupProfileBackFallback: adapters[4],
+                .closedGroupAdminProfile: adapters[5]
             ])
         }
     }
@@ -1255,7 +1449,7 @@ public extension SessionThreadViewModel {
         }()
     }
     
-    static func messagesQuery(userPublicKey: String, pattern: FTS5Pattern) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func messagesQuery(userSessionId: SessionId, pattern: FTS5Pattern) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
         let interaction: TypedTableAlias<Interaction> = TypedTableAlias()
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let profile: TypedTableAlias<Profile> = TypedTableAlias()
@@ -1264,6 +1458,7 @@ public extension SessionThreadViewModel {
         let closedGroupProfileFront: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileFront)
         let closedGroupProfileBack: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBack)
         let closedGroupProfileBackFallback: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBackFallback)
+        let closedGroupAdminProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupAdminProfile)
         let groupMember: TypedTableAlias<GroupMember> = TypedTableAlias()
         let openGroup: TypedTableAlias<OpenGroup> = TypedTableAlias()
         let interactionFullTextSearch: TypedTableAlias<Interaction.FullTextSearch> = TypedTableAlias(name: Interaction.fullTextSearchTableName)
@@ -1281,16 +1476,22 @@ public extension SessionThreadViewModel {
                 \(thread[.variant]) AS \(ViewModel.Columns.threadVariant),
                 \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
                 
-                (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                 IFNULL(\(thread[.pinnedPriority]), 0) AS \(ViewModel.Columns.threadPinnedPriority),
                 
                 \(contactProfile.allColumns),
                 \(closedGroupProfileFront.allColumns),
                 \(closedGroupProfileBack.allColumns),
                 \(closedGroupProfileBackFallback.allColumns),
+                \(closedGroupAdminProfile.allColumns),
                 \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
                 \(openGroup[.name]) AS \(ViewModel.Columns.openGroupName),
-                \(openGroup[.imageData]) AS \(ViewModel.Columns.openGroupProfilePictureData),
+        
+                COALESCE(
+                    \(openGroup[.displayPictureFilename]),
+                    \(closedGroup[.displayPictureFilename]),
+                    \(contactProfile[.profilePictureFileName])
+                ) AS \(ViewModel.Columns.displayPictureFilename),
             
                 \(interaction[.id]) AS \(ViewModel.Columns.interactionId),
                 \(interaction[.variant]) AS \(ViewModel.Columns.interactionVariant),
@@ -1299,7 +1500,7 @@ public extension SessionThreadViewModel {
         
                 \(interaction[.authorId]),
                 IFNULL(\(profile[.nickname]), \(profile[.name])) AS \(ViewModel.Columns.authorNameInternal),
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
             
             FROM \(Interaction.self)
             JOIN \(interactionFullTextSearch) ON (
@@ -1320,7 +1521,7 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
-                        \(groupMember[.profileId]) != \(userPublicKey)
+                        \(groupMember[.profileId]) != \(userSessionId.hexString)
                     )
                 )
             )
@@ -1333,15 +1534,16 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
-                        \(groupMember[.profileId]) != \(userPublicKey)
+                        \(groupMember[.profileId]) != \(userSessionId.hexString)
                     )
                 )
             )
             LEFT JOIN \(closedGroupProfileBackFallback) ON (
                 \(closedGroup[.threadId]) IS NOT NULL AND
                 \(closedGroupProfileBack[.id]) IS NULL AND
-                \(closedGroupProfileBackFallback[.id]) = \(userPublicKey)
-            )
+                \(closedGroupProfileBackFallback[.id]) = \(userSessionId.hexString)
+            )            
+            LEFT JOIN \(closedGroupAdminProfile.never)
         
             ORDER BY \(Column.rank), \(interaction[.timestampMs].desc)
             LIMIT \(SQL("\(SessionThreadViewModel.searchResultsLimit)"))
@@ -1353,6 +1555,7 @@ public extension SessionThreadViewModel {
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
+                Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db)
             ])
             
@@ -1360,7 +1563,8 @@ public extension SessionThreadViewModel {
                 .contactProfile: adapters[1],
                 .closedGroupProfileFront: adapters[2],
                 .closedGroupProfileBack: adapters[3],
-                .closedGroupProfileBackFallback: adapters[4]
+                .closedGroupProfileBackFallback: adapters[4],
+                .closedGroupAdminProfile: adapters[5]
             ])
         }
     }
@@ -1381,13 +1585,14 @@ public extension SessionThreadViewModel {
     ///
     /// **Note 2:** Since the "Hidden Contact" records don't have associated threads the `rowId` value in the
     /// returned results will always be `-1` for those results
-    static func contactsAndGroupsQuery(userPublicKey: String, pattern: FTS5Pattern, searchTerm: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func contactsAndGroupsQuery(userSessionId: SessionId, pattern: FTS5Pattern, searchTerm: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contactProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .contactProfile)
         let closedGroup: TypedTableAlias<ClosedGroup> = TypedTableAlias()
         let closedGroupProfileFront: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileFront)
         let closedGroupProfileBack: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBack)
         let closedGroupProfileBackFallback: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBackFallback)
+        let closedGroupAdminProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupAdminProfile)
         let groupMember: TypedTableAlias<GroupMember> = TypedTableAlias()
         let groupMemberProfile: TypedTableAlias<Profile> = TypedTableAlias(name: "groupMemberProfile")
         let openGroup: TypedTableAlias<OpenGroup> = TypedTableAlias()
@@ -1419,18 +1624,24 @@ public extension SessionThreadViewModel {
                 \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
                 \(groupMemberInfo[.threadMemberNames]),
                 
-                (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                 IFNULL(\(thread[.pinnedPriority]), 0) AS \(ViewModel.Columns.threadPinnedPriority),
                 
                 \(contactProfile.allColumns),
                 \(closedGroupProfileFront.allColumns),
                 \(closedGroupProfileBack.allColumns),
                 \(closedGroupProfileBackFallback.allColumns),
+                \(closedGroupAdminProfile.allColumns),
                 \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
                 \(openGroup[.name]) AS \(ViewModel.Columns.openGroupName),
-                \(openGroup[.imageData]) AS \(ViewModel.Columns.openGroupProfilePictureData),
+        
+                COALESCE(
+                    \(openGroup[.displayPictureFilename]),
+                    \(closedGroup[.displayPictureFilename]),
+                    \(contactProfile[.profilePictureFileName])
+                ) AS \(ViewModel.Columns.displayPictureFilename),
                 
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
 
             FROM \(SessionThread.self)
         
@@ -1442,13 +1653,14 @@ public extension SessionThreadViewModel {
             LEFT JOIN \(closedGroupProfileFront.never)
             LEFT JOIN \(closedGroupProfileBack.never)
             LEFT JOIN \(closedGroupProfileBackFallback.never)
+            LEFT JOIN \(closedGroupAdminProfile.never)
             LEFT JOIN \(closedGroup.never)
             LEFT JOIN \(openGroup.never)
             LEFT JOIN \(groupMemberInfo.never)
         
             WHERE
                 \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
-                \(SQL("\(thread[.id]) != \(userPublicKey)"))
+                \(SQL("\(thread[.id]) != \(userSessionId.hexString)"))
             GROUP BY \(thread[.id])
         """
         
@@ -1501,7 +1713,7 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
-                        \(groupMember[.profileId]) != \(userPublicKey)
+                        \(groupMember[.profileId]) != \(userSessionId.hexString)
                     )
                 )
             )
@@ -1514,14 +1726,15 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
-                        \(groupMember[.profileId]) != \(userPublicKey)
+                        \(groupMember[.profileId]) != \(userSessionId.hexString)
                     )
                 )
             )
             LEFT JOIN \(closedGroupProfileBackFallback) ON (
                 \(closedGroupProfileBack[.id]) IS NULL AND
-                \(closedGroupProfileBackFallback[.id]) = \(userPublicKey)
+                \(closedGroupProfileBackFallback[.id]) = \(userSessionId.hexString)
             )
+            LEFT JOIN \(closedGroupAdminProfile.never)
         
             LEFT JOIN \(contactProfile.never)
             LEFT JOIN \(openGroup.never)
@@ -1598,12 +1811,13 @@ public extension SessionThreadViewModel {
             LEFT JOIN \(closedGroupProfileFront.never)
             LEFT JOIN \(closedGroupProfileBack.never)
             LEFT JOIN \(closedGroupProfileBackFallback.never)
+            LEFT JOIN \(closedGroupAdminProfile.never)
             LEFT JOIN \(closedGroup.never)
             LEFT JOIN \(groupMemberInfo.never)
         
             WHERE
                 \(SQL("\(thread[.variant]) = \(SessionThread.Variant.community)")) AND
-                \(SQL("\(thread[.id]) != \(userPublicKey)"))
+                \(SQL("\(thread[.id]) != \(userSessionId.hexString)"))
             GROUP BY \(thread[.id])
         """
         
@@ -1613,6 +1827,7 @@ public extension SessionThreadViewModel {
             LEFT JOIN \(closedGroupProfileFront.never)
             LEFT JOIN \(closedGroupProfileBack.never)
             LEFT JOIN \(closedGroupProfileBackFallback.never)
+            LEFT JOIN \(closedGroupAdminProfile.never)
             LEFT JOIN \(openGroup.never)
             LEFT JOIN \(closedGroup.never)
             LEFT JOIN \(groupMemberInfo.never)
@@ -1634,7 +1849,7 @@ public extension SessionThreadViewModel {
         sqlQuery += """
         
             WHERE
-                \(SQL("\(thread[.id]) = \(userPublicKey)")) AND
+                \(SQL("\(thread[.id]) = \(userSessionId.hexString)")) AND
                 '\(noteToSelfLiteral)' LIKE '%\(searchTermLiteral)%'
         """
         
@@ -1655,7 +1870,7 @@ public extension SessionThreadViewModel {
         sqlQuery += noteToSelfQueryCommonJoins
         sqlQuery += """
         
-            WHERE \(SQL("\(thread[.id]) = \(userPublicKey)"))
+            WHERE \(SQL("\(thread[.id]) = \(userSessionId.hexString)"))
         """
         
         // Note to self thread name searching
@@ -1675,7 +1890,7 @@ public extension SessionThreadViewModel {
         sqlQuery += noteToSelfQueryCommonJoins
         sqlQuery += """
         
-            WHERE \(SQL("\(thread[.id]) = \(userPublicKey)"))
+            WHERE \(SQL("\(thread[.id]) = \(userSessionId.hexString)"))
         """
         
         // MARK: --Contacts without threads
@@ -1696,11 +1911,17 @@ public extension SessionThreadViewModel {
                 \(closedGroupProfileFront.allColumns),
                 \(closedGroupProfileBack.allColumns),
                 \(closedGroupProfileBackFallback.allColumns),
+                \(closedGroupAdminProfile.allColumns),
                 \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
                 \(openGroup[.name]) AS \(ViewModel.Columns.openGroupName),
-                \(openGroup[.imageData]) AS \(ViewModel.Columns.openGroupProfilePictureData),
                 
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                COALESCE(
+                    \(openGroup[.displayPictureFilename]),
+                    \(closedGroup[.displayPictureFilename]),
+                    \(contactProfile[.profilePictureFileName])
+                ) AS \(ViewModel.Columns.displayPictureFilename),
+                
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
 
             FROM \(Contact.self)
         """
@@ -1710,6 +1931,7 @@ public extension SessionThreadViewModel {
             LEFT JOIN \(closedGroupProfileFront.never)
             LEFT JOIN \(closedGroupProfileBack.never)
             LEFT JOIN \(closedGroupProfileBackFallback.never)
+            LEFT JOIN \(closedGroupAdminProfile.never)
             LEFT JOIN \(closedGroup.never)
             LEFT JOIN \(openGroup.never)
             LEFT JOIN \(groupMemberInfo.never)
@@ -1792,6 +2014,7 @@ public extension SessionThreadViewModel {
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
+                Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db)
             ])
 
@@ -1799,13 +2022,18 @@ public extension SessionThreadViewModel {
                 .contactProfile: adapters[1],
                 .closedGroupProfileFront: adapters[2],
                 .closedGroupProfileBack: adapters[3],
-                .closedGroupProfileBackFallback: adapters[4]
+                .closedGroupProfileBackFallback: adapters[4],
+                .closedGroupAdminProfile: adapters[5]
             ])
         }
     }
     
-    static func defaultContactsQuery(userPublicKey: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func defaultContactsQuery(using dependencies: Dependencies) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+        let userSessionId: SessionId = dependencies[cache: .general].sessionId
+        let currentTimestamp: TimeInterval = dependencies.dateNow.timeIntervalSince1970
+        
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
+        let contact: TypedTableAlias<Contact> = TypedTableAlias()
         let contactProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .contactProfile)
         
         /// **Note:** The `numColumnsBeforeProfiles` value **MUST** match the number of fields before
@@ -1815,23 +2043,22 @@ public extension SessionThreadViewModel {
             SELECT
                 100 AS \(Column.rank),
                 
-                \(thread[.rowId]) AS \(ViewModel.Columns.rowId),
-                \(thread[.id]) AS \(ViewModel.Columns.threadId),
-                \(thread[.variant]) AS \(ViewModel.Columns.threadVariant),
-                \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
+                \(contact[.rowId]) AS \(ViewModel.Columns.rowId),
+                \(contact[.id]) AS \(ViewModel.Columns.threadId),
+                \(SessionThread.Variant.contact) AS \(ViewModel.Columns.threadVariant),
+                IFNULL(\(thread[.creationDateTimestamp]), \(currentTimestamp)) AS \(ViewModel.Columns.threadCreationDateTimestamp),
                 '' AS \(ViewModel.Columns.threadMemberNames),
                 
-                (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                 IFNULL(\(thread[.pinnedPriority]), 0) AS \(ViewModel.Columns.threadPinnedPriority),
                 
                 \(contactProfile.allColumns),
                 
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
 
-            FROM \(SessionThread.self)
-            LEFT JOIN \(contactProfile) ON \(contactProfile[.id]) = \(thread[.id])
-        
-            WHERE \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)"))
+            FROM \(Contact.self)
+            LEFT JOIN \(thread) ON \(thread[.id]) = \(contact[.id])
+            LEFT JOIN \(contactProfile) ON \(contactProfile[.id]) = \(contact[.id])
         """
         
         // Add adapters which will group the various 'Profile' columns so they can be decoded
@@ -1849,7 +2076,7 @@ public extension SessionThreadViewModel {
     }
     
     /// This method returns only the 'Note to Self' thread in the structure of a search result conversation
-    static func noteToSelfOnlyQuery(userPublicKey: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func noteToSelfOnlyQuery(userSessionId: SessionId) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contactProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .contactProfile)
         
@@ -1871,12 +2098,12 @@ public extension SessionThreadViewModel {
                 
                 \(contactProfile.allColumns),
                 
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
 
             FROM \(SessionThread.self)
             JOIN \(contactProfile) ON \(contactProfile[.id]) = \(thread[.id])
         
-            WHERE \(SQL("\(thread[.id]) = \(userPublicKey)"))
+            WHERE \(SQL("\(thread[.id]) = \(userSessionId.hexString)"))
         """
         
         // Add adapters which will group the various 'Profile' columns so they can be decoded
@@ -1897,7 +2124,7 @@ public extension SessionThreadViewModel {
 // MARK: - Share Extension
 
 public extension SessionThreadViewModel {
-    static func shareQuery(userPublicKey: String) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
+    static func shareQuery(userSessionId: SessionId) -> AdaptedFetchRequest<SQLRequest<SessionThreadViewModel>> {
         let thread: TypedTableAlias<SessionThread> = TypedTableAlias()
         let contact: TypedTableAlias<Contact> = TypedTableAlias()
         let contactProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .contactProfile)
@@ -1905,6 +2132,7 @@ public extension SessionThreadViewModel {
         let closedGroupProfileFront: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileFront)
         let closedGroupProfileBack: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBack)
         let closedGroupProfileBackFallback: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupProfileBackFallback)
+        let closedGroupAdminProfile: TypedTableAlias<Profile> = TypedTableAlias(ViewModel.self, column: .closedGroupAdminProfile)
         let groupMember: TypedTableAlias<GroupMember> = TypedTableAlias()
         let openGroup: TypedTableAlias<OpenGroup> = TypedTableAlias()
         let profile: TypedTableAlias<Profile> = TypedTableAlias()
@@ -1924,11 +2152,13 @@ public extension SessionThreadViewModel {
                 \(thread[.variant]) AS \(ViewModel.Columns.threadVariant),
                 \(thread[.creationDateTimestamp]) AS \(ViewModel.Columns.threadCreationDateTimestamp),
                 
-                (\(SQL("\(thread[.id]) = \(userPublicKey)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
+                (\(SQL("\(thread[.id]) = \(userSessionId.hexString)"))) AS \(ViewModel.Columns.threadIsNoteToSelf),
                 (
-                    \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
-                    \(SQL("\(thread[.id]) != \(userPublicKey)")) AND
-                    IFNULL(\(contact[.isApproved]), false) = false
+                    COALESCE(\(closedGroup[.invited]), false) = true OR (
+                        \(SQL("\(thread[.variant]) = \(SessionThread.Variant.contact)")) AND
+                        \(SQL("\(thread[.id]) != \(userSessionId.hexString)")) AND
+                        IFNULL(\(contact[.isApproved]), false) = false
+                    )
                 ) AS \(ViewModel.Columns.threadIsMessageRequest),
                 
                 IFNULL(\(thread[.pinnedPriority]), 0) AS \(ViewModel.Columns.threadPinnedPriority),
@@ -1938,6 +2168,7 @@ public extension SessionThreadViewModel {
                 \(closedGroupProfileFront.allColumns),
                 \(closedGroupProfileBack.allColumns),
                 \(closedGroupProfileBackFallback.allColumns),
+                \(closedGroupAdminProfile.allColumns),
                 \(closedGroup[.name]) AS \(ViewModel.Columns.closedGroupName),
         
                 EXISTS (
@@ -1946,18 +2177,23 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
                         \(SQL("\(groupMember[.role]) != \(GroupMember.Role.zombie)")) AND
-                        \(SQL("\(groupMember[.profileId]) = \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) = \(userSessionId.hexString)"))
                     )
                 ) AS \(ViewModel.Columns.currentUserIsClosedGroupMember),
         
                 \(openGroup[.name]) AS \(ViewModel.Columns.openGroupName),
-                \(openGroup[.imageData]) AS \(ViewModel.Columns.openGroupProfilePictureData),
                 \(openGroup[.permissions]) AS \(ViewModel.Columns.openGroupPermissions),
+        
+                COALESCE(
+                    \(openGroup[.displayPictureFilename]),
+                    \(closedGroup[.displayPictureFilename]),
+                    \(contactProfile[.profilePictureFileName])
+                ) AS \(ViewModel.Columns.displayPictureFilename),
         
                 \(interaction[.id]) AS \(ViewModel.Columns.interactionId),
                 \(interaction[.variant]) AS \(ViewModel.Columns.interactionVariant),
         
-                \(SQL("\(userPublicKey)")) AS \(ViewModel.Columns.currentUserPublicKey)
+                \(SQL("\(userSessionId.hexString)")) AS \(ViewModel.Columns.currentUserSessionId)
             
             FROM \(SessionThread.self)
             LEFT JOIN \(Contact.self) ON \(contact[.id]) = \(thread[.id])
@@ -1970,7 +2206,7 @@ public extension SessionThreadViewModel {
                     0 AS \(AggregateInteraction.Columns.threadUnreadCount),
                     0 AS \(AggregateInteraction.Columns.threadUnreadMentionCount)
                 FROM \(Interaction.self)
-                WHERE \(SQL("\(interaction[.variant]) != \(Interaction.Variant.standardIncomingDeleted)"))
+                WHERE \(SQL("\(interaction[.variant]) IN \(Interaction.Variant.variantsToShowConversationSnippet)"))
                 GROUP BY \(interaction[.threadId])
             ) AS \(aggregateInteraction) ON \(aggregateInteraction[.threadId]) = \(thread[.id])
             LEFT JOIN \(Interaction.self) ON (
@@ -1990,7 +2226,7 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
-                        \(SQL("\(groupMember[.profileId]) != \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) != \(userSessionId.hexString)"))
                     )
                 )
             )
@@ -2003,35 +2239,38 @@ public extension SessionThreadViewModel {
                     WHERE (
                         \(SQL("\(groupMember[.role]) = \(GroupMember.Role.standard)")) AND
                         \(groupMember[.groupId]) = \(closedGroup[.threadId]) AND
-                        \(SQL("\(groupMember[.profileId]) != \(userPublicKey)"))
+                        \(SQL("\(groupMember[.profileId]) != \(userSessionId.hexString)"))
                     )
                 )
             )
             LEFT JOIN \(closedGroupProfileBackFallback) ON (
                 \(closedGroup[.threadId]) IS NOT NULL AND
                 \(closedGroupProfileBack[.id]) IS NULL AND
-                \(closedGroupProfileBackFallback[.id]) = \(SQL("\(userPublicKey)"))
+                \(closedGroupProfileBackFallback[.id]) = \(SQL("\(userSessionId.hexString)"))
             )
+            LEFT JOIN \(closedGroupAdminProfile.never)
             
             WHERE (
-                \(thread[.shouldBeVisible]) = true AND (
+                \(thread[.shouldBeVisible]) = true AND
+                COALESCE(\(closedGroup[.invited]), false) = false AND (
                     -- Is not a message request
                     \(SQL("\(thread[.variant]) != \(SessionThread.Variant.contact)")) OR
-                    \(SQL("\(thread[.id]) = \(userPublicKey)")) OR
+                    \(SQL("\(thread[.id]) = \(userSessionId.hexString)")) OR
                     \(contact[.isApproved]) = true
                 )
                 -- Always show the 'Note to Self' thread when sharing
-                OR \(SQL("\(thread[.id]) = \(userPublicKey)"))
+                OR \(SQL("\(thread[.id]) = \(userSessionId.hexString)"))
             )
         
             GROUP BY \(thread[.id])
             -- 'Note to Self', then by most recent message
-            ORDER BY \(SQL("\(thread[.id]) = \(userPublicKey)")) DESC, IFNULL(\(interaction[.timestampMs]), (\(thread[.creationDateTimestamp]) * 1000)) DESC
+            ORDER BY \(SQL("\(thread[.id]) = \(userSessionId.hexString)")) DESC, IFNULL(\(interaction[.timestampMs]), (\(thread[.creationDateTimestamp]) * 1000)) DESC
         """
         
         return request.adapted { db in
             let adapters = try splittingRowAdapters(columnCounts: [
                 numColumnsBeforeProfiles,
+                Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
                 Profile.numberOfSelectedColumns(db),
@@ -2042,7 +2281,8 @@ public extension SessionThreadViewModel {
                 .contactProfile: adapters[1],
                 .closedGroupProfileFront: adapters[2],
                 .closedGroupProfileBack: adapters[3],
-                .closedGroupProfileBackFallback: adapters[4]
+                .closedGroupProfileBackFallback: adapters[4],
+                .closedGroupAdminProfile: adapters[5]
             ])
         }
     }

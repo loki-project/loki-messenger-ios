@@ -8,7 +8,6 @@ import GRDB
 enum _001_InitialSetupMigration: Migration {
     static let target: TargetMigrations.Identifier = .utilitiesKit
     static let identifier: String = "initialSetup"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [
@@ -75,6 +74,6 @@ enum _001_InitialSetupMigration: Migration {
             t.column(.value, .blob).notNull()
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

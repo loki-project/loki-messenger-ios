@@ -3,26 +3,30 @@
 import Foundation
 import Combine
 import WebRTC
+import SessionMessagingKit
 import SessionUtilitiesKit
 
 extension WebRTCSession {
     
     public func handleICECandidates(_ candidate: [RTCIceCandidate]) {
-        SNLog("[Calls] Received ICE candidate message.")
+        Log.info(.calls, "Received ICE candidate message.")
+        self.delegate?.iceCandidateDidReceive()
         candidate.forEach { peerConnection?.add($0, completionHandler: { _ in  }) }
     }
     
     public func handleRemoteSDP(_ sdp: RTCSessionDescription, from sessionId: String) {
-        SNLog("[Calls] Received remote SDP: \(sdp.sdp).")
+        Log.info(.calls, "Received remote SDP: \(sdp.sdp).")
         
         peerConnection?.setRemoteDescription(sdp, completionHandler: { [weak self] error in
             if let error = error {
-                SNLog("[Calls] Couldn't set SDP due to error: \(error).")
+                Log.error(.calls, "Couldn't set SDP due to error: \(error).")
             }
             else {
                 guard sdp.type == .offer else { return }
                 
-                self?.sendAnswer(to: sessionId).sinkUntilComplete()
+                self?.sendAnswer(to: sessionId)
+                    .retry(5)
+                    .sinkUntilComplete()
             }
         })
     }

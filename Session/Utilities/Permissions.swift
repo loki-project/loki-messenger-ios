@@ -8,9 +8,10 @@ import SessionUIKit
 import SessionUtilitiesKit
 import SessionMessagingKit
 
-public enum Permissions {
+extension Permissions {
     @discardableResult public static func requestCameraPermissionIfNeeded(
         presentingViewController: UIViewController? = nil,
+        using dependencies: Dependencies,
         onAuthorized: (() -> Void)? = nil
     ) -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -20,8 +21,7 @@ public enum Permissions {
             
             case .denied, .restricted:
                 guard
-                    Singleton.hasAppContext,
-                    let presentingViewController: UIViewController = (presentingViewController ?? Singleton.appContext.frontmostViewController)
+                    let presentingViewController: UIViewController = (presentingViewController ?? dependencies[singleton: .appContext].frontMostViewController)
                 else { return false }
                 
                 let confirmationModal: ConfirmationModal = ConfirmationModal(
@@ -55,48 +55,65 @@ public enum Permissions {
 
     public static func requestMicrophonePermissionIfNeeded(
         presentingViewController: UIViewController? = nil,
+        using dependencies: Dependencies,
         onNotGranted: (() -> Void)? = nil
     ) {
-        switch AVAudioSession.sharedInstance().recordPermission {
-            case .granted: break
-            case .denied:
-                guard
-                    Singleton.hasAppContext,
-                    let presentingViewController: UIViewController = (presentingViewController ?? Singleton.appContext.frontmostViewController)
-                else { return }
-                onNotGranted?()
-                
-                let confirmationModal: ConfirmationModal = ConfirmationModal(
-                    info: ConfirmationModal.Info(
-                        title: "permissionsRequired".localized(),
-                        body: .text(
-                            "permissionsMicrophoneAccessRequiredIos"
-                                .put(key: "app_name", value: Constants.app_name)
-                                .localized()
-                        ),
-                        confirmTitle: "sessionSettings".localized(),
-                        dismissOnConfirm: false,
-                        onConfirm: { [weak presentingViewController] _ in
-                            presentingViewController?.dismiss(animated: true, completion: {
-                                UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
-                            })
-                        },
-                        afterClosed: { onNotGranted?() }
-                    )
+        let handlePermissionDenied: () -> Void = {
+            guard
+                let presentingViewController: UIViewController = (presentingViewController ?? dependencies[singleton: .appContext].frontMostViewController)
+            else { return }
+            onNotGranted?()
+            
+            let confirmationModal: ConfirmationModal = ConfirmationModal(
+                info: ConfirmationModal.Info(
+                    title: "permissionsRequired".localized(),
+                    body: .text(
+                        "permissionsMicrophoneAccessRequiredIos"
+                            .put(key: "app_name", value: Constants.app_name)
+                            .localized()
+                    ),
+                    confirmTitle: "sessionSettings".localized(),
+                    dismissOnConfirm: false,
+                    onConfirm: { [weak presentingViewController] _ in
+                        presentingViewController?.dismiss(animated: true, completion: {
+                            UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
+                        })
+                    },
+                    afterClosed: { onNotGranted?() }
                 )
-                presentingViewController.present(confirmationModal, animated: true, completion: nil)
-                
-            case .undetermined:
-                onNotGranted?()
-                AVAudioSession.sharedInstance().requestRecordPermission { _ in }
-                
-            default: break
+            )
+            presentingViewController.present(confirmationModal, animated: true, completion: nil)
+        }
+        
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+                case .granted: break
+                case .denied: handlePermissionDenied()
+                case .undetermined:
+                    onNotGranted?()
+                    AVAudioApplication.requestRecordPermission { granted in
+                        dependencies[defaults: .appGroup, key: .lastSeenHasMicrophonePermission] = granted
+                    }
+                default: break
+            }
+        } else {
+            switch AVAudioSession.sharedInstance().recordPermission {
+                case .granted: break
+                case .denied: handlePermissionDenied()
+                case .undetermined:
+                    onNotGranted?()
+                    AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                        dependencies[defaults: .appGroup, key: .lastSeenHasMicrophonePermission] = granted
+                    }
+                default: break
+            }
         }
     }
 
     public static func requestLibraryPermissionIfNeeded(
         isSavingMedia: Bool,
         presentingViewController: UIViewController? = nil,
+        using dependencies: Dependencies,
         onAuthorized: @escaping () -> Void
     ) {
         let targetPermission: PHAccessLevel = (isSavingMedia ? .addOnly : .readWrite)
@@ -124,8 +141,7 @@ public enum Permissions {
             case .authorized, .limited: onAuthorized()
             case .denied, .restricted:
                 guard
-                    Singleton.hasAppContext,
-                    let presentingViewController: UIViewController = (presentingViewController ?? Singleton.appContext.frontmostViewController)
+                    let presentingViewController: UIViewController = (presentingViewController ?? dependencies[singleton: .appContext].frontMostViewController)
                 else { return }
                 
                 let confirmationModal: ConfirmationModal = ConfirmationModal(

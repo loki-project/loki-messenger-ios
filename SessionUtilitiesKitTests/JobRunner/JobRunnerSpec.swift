@@ -23,7 +23,8 @@ class JobRunnerSpec: QuickSpec {
             nextRunTimestamp: 0,
             threadId: nil,
             interactionId: nil,
-            details: nil
+            details: nil,
+            transientData: nil
         )
         @TestState var job2: Job! = Job(
             id: 101,
@@ -36,46 +37,40 @@ class JobRunnerSpec: QuickSpec {
             nextRunTimestamp: 0,
             threadId: nil,
             interactionId: nil,
-            details: nil
+            details: nil,
+            transientData: nil
         )
-        @TestState var dependencies: Dependencies! = Dependencies(
-            dateNow: Date(timeIntervalSince1970: 0),
-            forceSynchronous: true
+        @TestState var dependencies: TestDependencies! = TestDependencies { dependencies in
+            dependencies.dateNow = Date(timeIntervalSince1970: 0)
+            dependencies.forceSynchronous = true
+        }
+        @TestState(singleton: .storage, in: dependencies) var mockStorage: Storage! = SynchronousStorage(
+            customWriter: try! DatabaseQueue(),
+            migrationTargets: [
+                SNUtilitiesKit.self
+            ],
+            using: dependencies,
+            initialData: { db in
+                // Migrations add jobs which we don't want so delete them
+                try Job.deleteAll(db)
+            }
         )
-        @TestState var mockStorage: Storage! = {
-            let result = SynchronousStorage(
-                customWriter: try! DatabaseQueue(),
-                migrationTargets: [
-                    SNUtilitiesKit.self
-                ],
-                initialData: { db in
-                    // Migrations add jobs which we don't want so delete them
-                    try Job.deleteAll(db)
-                },
-                using: dependencies
-            )
-            dependencies.storage = result
-            
-            return result
-        }()
-        @TestState var jobRunner: JobRunnerType! = {
-            let result = JobRunner(isTestingJobRunner: true, using: dependencies)
-            result.setExecutor(TestJob.self, for: .messageSend)
-            result.setExecutor(TestJob.self, for: .attachmentUpload)
-            result.setExecutor(TestJob.self, for: .messageReceive)
-            
-            // Need to assign this to ensure it's used by nested dependencies
-            dependencies.jobRunner = result
-            
-            return result
-        }()
+        @TestState(singleton: .jobRunner, in: dependencies) var jobRunner: JobRunnerType! = JobRunner(
+            isTestingJobRunner: true,
+            executors: [
+                .messageSend: TestJob.self,
+                .attachmentUpload: TestJob.self,
+                .messageReceive: TestJob.self
+            ],
+            using: dependencies
+        )
         
         // MARK: - a JobRunner
         describe("a JobRunner") {
             afterEach {
                 /// We **must** set `fixedTime` to ensure we break any loops within the `TestJob` executor
                 dependencies.fixedTime = Int.max
-                jobRunner.stopAndClearPendingJobs(using: dependencies)
+                jobRunner.stopAndClearPendingJobs()
             }
             
             // MARK: -- when configuring
@@ -93,12 +88,12 @@ class JobRunnerSpec: QuickSpec {
                         nextRunTimestamp: 0,
                         threadId: nil,
                         interactionId: nil,
-                        details: try? JSONEncoder()
-                            .with(outputFormatting: .sortedKeys)
-                            .encode(TestDetails(completeTime: 1))
+                        details: try? JSONEncoder(using: dependencies)
+                            .encode(TestDetails(completeTime: 1)),
+                        transientData: nil
                     )
-                    jobRunner.appDidFinishLaunching(using: dependencies)
-                    jobRunner.appDidBecomeActive(using: dependencies)
+                    jobRunner.appDidFinishLaunching()
+                    jobRunner.appDidBecomeActive()
                     
                     // Save the job to the database
                     mockStorage.write { db in _ = try job1.inserted(db) }
@@ -109,8 +104,7 @@ class JobRunnerSpec: QuickSpec {
                         jobRunner.upsert(
                             db,
                             job: job1,
-                            canStartJob: true,
-                            using: dependencies
+                            canStartJob: true
                         )
                     }
                     
@@ -126,8 +120,7 @@ class JobRunnerSpec: QuickSpec {
                         jobRunner.add(
                             db,
                             job: job1,
-                            canStartJob: true,
-                            using: dependencies
+                            canStartJob: true
                         )
                     }
                     
@@ -160,15 +153,14 @@ class JobRunnerSpec: QuickSpec {
                     // MARK: -------- returns true when given a non blocking job that is running
                     it("returns true when given a non blocking job that is running") {
                         job1 = job1.with(details: TestDetails(completeTime: 1))
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -188,21 +180,20 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beTrue())
                     }
@@ -217,15 +208,14 @@ class JobRunnerSpec: QuickSpec {
                     
                     // MARK: -------- returns an empty dictionary when there are no jobs matching the filters
                     it("returns an empty dictionary when there are no jobs matching the filters") {
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -245,9 +235,9 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -260,24 +250,23 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: nil
+                            details: nil,
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -318,9 +307,9 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -333,26 +322,24 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: false,
-                                using: dependencies
+                                canStartJob: false
                             )
                         }
                         
@@ -363,8 +350,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .messageReceive,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(completeTime: 1)),
                                     uniqueHashValue: nil
                                 )
@@ -385,9 +371,9 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -400,26 +386,24 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -430,8 +414,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .messageReceive,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(completeTime: 1)),
                                     uniqueHashValue: nil
                                 )
@@ -443,22 +426,20 @@ class JobRunnerSpec: QuickSpec {
                     it("can filter to specific variants") {
                         job1 = job1.with(details: TestDetails(completeTime: 1))
                         job2 = job2.with(details: TestDetails(completeTime: 2))
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -469,8 +450,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .attachmentUpload,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(completeTime: 2)),
                                     uniqueHashValue: nil
                                 )
@@ -481,15 +461,14 @@ class JobRunnerSpec: QuickSpec {
                     // MARK: -------- includes non blocking jobs
                     it("includes non blocking jobs") {
                         job2 = job2.with(details: TestDetails(completeTime: 1))
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -499,8 +478,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .attachmentUpload,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(completeTime: 1)),
                                     uniqueHashValue: nil
                                 )
@@ -520,21 +498,20 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try! JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try! JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         expect(jobRunner.jobInfoFor(state: .running, variant: .attachmentUpload))
                             .to(equal([
@@ -542,8 +519,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .attachmentUpload,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(completeTime: 1)),
                                     uniqueHashValue: nil
                                 )
@@ -590,9 +566,9 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -605,26 +581,24 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 2))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 2)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -637,15 +611,14 @@ class JobRunnerSpec: QuickSpec {
                     // MARK: -------- returns true when there is a running job
                     it("returns true when there is a running job") {
                         job2 = job2.with(details: TestDetails(completeTime: 1))
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -668,23 +641,22 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try! JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try! JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
                         // Need to add the job before starting it since it's a 'runOnceNextLaunch'
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         expect(Array(jobRunner.jobInfoFor(state: .running, variant: .attachmentUpload).keys))
                             .to(equal([101]))
@@ -695,15 +667,14 @@ class JobRunnerSpec: QuickSpec {
                     // MARK: -------- returns true when there is a non blocking job
                     it("returns true when there is a non blocking job") {
                         job2 = job2.with(details: TestDetails(completeTime: 1))
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -724,8 +695,7 @@ class JobRunnerSpec: QuickSpec {
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -740,12 +710,11 @@ class JobRunnerSpec: QuickSpec {
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         expect(jobRunner.allJobInfo()).to(beEmpty())
                     }
                     
@@ -764,15 +733,16 @@ class JobRunnerSpec: QuickSpec {
                             interactionId: nil,
                             details: try? JSONEncoder()
                                 .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             try job1.upsert(db)
                         }
                         
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beTrue())
                     }
                 }
@@ -787,8 +757,7 @@ class JobRunnerSpec: QuickSpec {
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -809,23 +778,21 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -833,10 +800,10 @@ class JobRunnerSpec: QuickSpec {
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beFalse())
                         
                         // Start the blocking job
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         // Make sure the other queues don't start
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidBecomeActive()
                         
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beFalse())
                     }
@@ -854,9 +821,9 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 2))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 2)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -869,23 +836,21 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -893,10 +858,10 @@ class JobRunnerSpec: QuickSpec {
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beFalse())
                         
                         // Start the blocking queue
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         // Make sure the other queues don't start
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidBecomeActive()
                         
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beFalse())
                     }
@@ -904,14 +869,13 @@ class JobRunnerSpec: QuickSpec {
                     // MARK: -------- starts the job queues if there are no app active jobs
                     it("starts the job queues if there are no app active jobs") {
                         job1 = job1.with(details: TestDetails(completeTime: 1))
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -919,7 +883,7 @@ class JobRunnerSpec: QuickSpec {
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beFalse())
                         
                         // Make sure it starts after 'appDidBecomeActive' is called
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidBecomeActive()
                         
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beTrue())
                     }
@@ -937,9 +901,9 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -952,24 +916,22 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -978,7 +940,7 @@ class JobRunnerSpec: QuickSpec {
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beFalse())
                         
                         // Make sure the queues are started
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidBecomeActive()
                         
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beTrue())
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beTrue())
@@ -998,23 +960,21 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try! JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try! JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1024,8 +984,8 @@ class JobRunnerSpec: QuickSpec {
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beFalse())
                         
                         // Make sure it starts
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         // Blocking job running but blocked job not
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beTrue())
@@ -1053,23 +1013,21 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try! JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try! JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                             jobRunner.add(
                                 db,
                                 job: job2,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1078,8 +1036,8 @@ class JobRunnerSpec: QuickSpec {
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beFalse())
                         
                         // Make sure it starts
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beTrue())
                         expect(jobRunner.isCurrentlyRunning(job2)).to(beTrue())
@@ -1100,15 +1058,16 @@ class JobRunnerSpec: QuickSpec {
                             interactionId: nil,
                             details: try? JSONEncoder()
                                 .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             try job1.upsert(db)
                         }
                         
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         expect(jobRunner.isCurrentlyRunning(job1)).to(beTrue())
                     }
                 }
@@ -1128,17 +1087,16 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1158,17 +1116,16 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1188,18 +1145,17 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1219,18 +1175,17 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1250,19 +1205,18 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1282,19 +1236,18 @@ class JobRunnerSpec: QuickSpec {
                             nextRunTimestamp: 0,
                             threadId: nil,
                             interactionId: nil,
-                            details: try? JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
-                                .encode(TestDetails(completeTime: 1))
+                            details: try? JSONEncoder(using: dependencies)
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
-                        jobRunner.appDidFinishLaunching(using: dependencies)
-                        jobRunner.appDidBecomeActive(using: dependencies)
+                        jobRunner.appDidFinishLaunching()
+                        jobRunner.appDidBecomeActive()
                         
                         mockStorage.write { db in
                             jobRunner.add(
                                 db,
                                 job: job1,
-                                canStartJob: true,
-                                using: dependencies
+                                canStartJob: true
                             )
                         }
                         
@@ -1306,8 +1259,8 @@ class JobRunnerSpec: QuickSpec {
             // MARK: ---- when running jobs
             context("when running jobs") {
                 beforeEach {
-                    jobRunner.appDidFinishLaunching(using: dependencies)
-                    jobRunner.appDidBecomeActive(using: dependencies)
+                    jobRunner.appDidFinishLaunching()
+                    jobRunner.appDidBecomeActive()
                 }
                 
                 // MARK: ------ by adding
@@ -1317,7 +1270,7 @@ class JobRunnerSpec: QuickSpec {
                         job1 = job1.with(details: TestDetails(completeTime: 1))
                         
                         mockStorage.write { db in
-                            jobRunner.add(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.add(db, job: job1, canStartJob: true)
                             
                             expect(Array(jobRunner.jobInfoFor(state: .running).keys)).to(beEmpty())
                         }
@@ -1339,7 +1292,8 @@ class JobRunnerSpec: QuickSpec {
                             threadId: nil,
                             interactionId: nil,
                             details: try? JSONEncoder(using: dependencies)
-                                .encode(TestDetails(completeTime: 1))
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         job2 = Job(
                             id: 101,
@@ -1353,15 +1307,16 @@ class JobRunnerSpec: QuickSpec {
                             threadId: nil,
                             interactionId: nil,
                             details: try? JSONEncoder(using: dependencies)
-                                .encode(TestDetails(completeTime: 1))
+                                .encode(TestDetails(completeTime: 1)),
+                            transientData: nil
                         )
                         
                         var result1: Job?
                         var result2: Job?
                         
                         mockStorage.write { db in
-                            result1 = jobRunner.add(db, job: job1, canStartJob: true, using: dependencies)
-                            result2 = jobRunner.add(db, job: job2, canStartJob: true, using: dependencies)
+                            result1 = jobRunner.add(db, job: job1, canStartJob: true)
+                            result2 = jobRunner.add(db, job: job2, canStartJob: true)
                         }
                         
                         expect(result1).toNot(beNil())
@@ -1381,7 +1336,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1399,7 +1354,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the initial job is removed from the queue
@@ -1418,7 +1373,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1442,7 +1397,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1465,7 +1420,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1488,7 +1443,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1502,7 +1457,7 @@ class JobRunnerSpec: QuickSpec {
                             .to(beEmpty())
                         
                         // Stop the queues so it doesn't run out of retry attempts
-                        jobRunner.stopAndClearPendingJobs(exceptForVariant: nil, using: dependencies, onComplete: nil)
+                        jobRunner.stopAndClearPendingJobs(exceptForVariant: nil, onComplete: nil)
                         
                         // Make sure the jobs still exist
                         expect(mockStorage.read { db in try Job.fetchCount(db) }).to(equal(2))
@@ -1518,7 +1473,7 @@ class JobRunnerSpec: QuickSpec {
                             try job2.insert(db)
                             try JobDependencies(jobId: job1.id!, dependantId: job2.id!).insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1540,8 +1495,8 @@ class JobRunnerSpec: QuickSpec {
             // MARK: ---- when completing jobs
             context("when completing jobs") {
                 beforeEach {
-                    jobRunner.appDidFinishLaunching(using: dependencies)
-                    jobRunner.appDidBecomeActive(using: dependencies)
+                    jobRunner.appDidFinishLaunching()
+                    jobRunner.appDidBecomeActive()
                 }
                 
                 // MARK: ------ by succeeding
@@ -1553,7 +1508,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1571,7 +1526,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1595,7 +1550,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1607,8 +1562,7 @@ class JobRunnerSpec: QuickSpec {
                         expect {
                             mockStorage.read { db in try Job.select(.details).asRequest(of: Data.self).fetchOne(db) }
                         }.to(equal(
-                            try! JSONEncoder()
-                                .with(outputFormatting: .sortedKeys)
+                            try! JSONEncoder(using: dependencies)
                                 .encode(TestDetails(result: .deferred, completeTime: 3))
                         ))
                     }
@@ -1620,7 +1574,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1641,7 +1595,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure it runs
@@ -1659,8 +1613,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .messageSend,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(result: .deferred, completeTime: 3)),
                                     uniqueHashValue: nil
                                 )
@@ -1678,8 +1631,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .messageSend,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(result: .deferred, completeTime: 5)),
                                     uniqueHashValue: nil
                                 )
@@ -1697,8 +1649,7 @@ class JobRunnerSpec: QuickSpec {
                                     variant: .messageSend,
                                     threadId: nil,
                                     interactionId: nil,
-                                    detailsData: try! JSONEncoder()
-                                        .with(outputFormatting: .sortedKeys)
+                                    detailsData: try! JSONEncoder(using: dependencies)
                                         .encode(TestDetails(result: .deferred, completeTime: 7)),
                                     uniqueHashValue: nil
                                 )
@@ -1720,7 +1671,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1738,7 +1689,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1762,7 +1713,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1780,7 +1731,7 @@ class JobRunnerSpec: QuickSpec {
                         mockStorage.write { db in
                             try job1.insert(db)
                             
-                            jobRunner.upsert(db, job: job1, canStartJob: true, using: dependencies)
+                            jobRunner.upsert(db, job: job1, canStartJob: true)
                         }
                         
                         // Make sure the dependency is run
@@ -1828,7 +1779,7 @@ fileprivate struct TestDetails: Codable {
 }
 
 fileprivate struct InvalidDetails: Codable {
-    func encode(to encoder: Encoder) throws { throw NetworkError.parsingFailed }
+    func encode(to encoder: Encoder) throws { throw MockError.mockedData }
 }
 
 fileprivate enum TestJob: JobExecutor {
@@ -1839,15 +1790,15 @@ fileprivate enum TestJob: JobExecutor {
     static func run(
         _ job: Job,
         queue: DispatchQueue,
-        success: @escaping (Job, Bool, Dependencies) -> (),
-        failure: @escaping (Job, Error?, Bool, Dependencies) -> (),
-        deferred: @escaping (Job, Dependencies) -> (),
+        success: @escaping (Job, Bool) -> Void,
+        failure: @escaping (Job, Error, Bool) -> Void,
+        deferred: @escaping (Job) -> Void,
         using dependencies: Dependencies
     ) {
         guard
             let detailsData: Data = job.details,
-            let details: TestDetails = try? JSONDecoder().decode(TestDetails.self, from: detailsData)
-        else { return success(job, true, dependencies) }
+            let details: TestDetails = try? JSONDecoder(using: dependencies).decode(TestDetails.self, from: detailsData)
+        else { return success(job, true) }
         
         let completeJob: () -> () = {
             // Need to increase the 'completeTime' and 'nextRunTimestamp' to prevent the job
@@ -1862,13 +1813,13 @@ fileprivate enum TestJob: JobExecutor {
                         stringValue: details.stringValue
                     )
                 )!
-            dependencies.storage.write { db in try _ = updatedJob.saved(db) }
+            dependencies[singleton: .storage].write { db in try updatedJob.upserted(db) }
             
             switch details.result {
-                case .success: success(job, true, dependencies)
-                case .failure: failure(job, nil, false, dependencies)
-                case .permanentFailure: failure(job, nil, true, dependencies)
-                case .deferred: deferred(updatedJob, dependencies)
+                case .success: success(job, true)
+                case .failure: failure(job, MockError.mockedData, false)
+                case .permanentFailure: failure(job, MockError.mockedData, true)
+                case .deferred: deferred(updatedJob)
             }
         }
         
@@ -1878,10 +1829,29 @@ fileprivate enum TestJob: JobExecutor {
             }
         }
         
-        dependencies.asyncExecutions.appendTo(details.completeTime) {
+        dependencies.async(at: details.completeTime) {
             queue.async(using: dependencies) {
                 completeJob()
             }
         }
+    }
+}
+
+// MARK: - Unit Test Convenience
+
+fileprivate extension JobRunner {
+    convenience init(
+        isTestingJobRunner: Bool = false,
+        variantsToExclude: [Job.Variant] = [],
+        executors: [Job.Variant: JobExecutor.Type],
+        using dependencies: Dependencies
+    ) {
+        self.init(
+            isTestingJobRunner: isTestingJobRunner,
+            variantsToExclude: variantsToExclude,
+            using: dependencies
+        )
+        
+        executors.forEach { variant, executor in self.setExecutor(executor, for: variant) }
     }
 }

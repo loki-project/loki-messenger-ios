@@ -11,7 +11,7 @@ internal enum Theme_ClassicLight: ThemeColors {
         .clear: .clear,
         .primary: .primary,
         .defaultPrimary: Theme.PrimaryColor.green.color,
-        .warning: .warning,
+        .warning: .warningLight,
         .danger: .dangerLight,
         .disabled: .disabledLight,
         .backgroundPrimary: .classicLight6,

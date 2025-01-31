@@ -8,13 +8,18 @@ import SessionUtilitiesKit
 enum _005_AddSnodeReveivedMessageInfoPrimaryKey: Migration {
     static let target: TargetMigrations.Identifier = .snodeKit
     static let identifier: String = "AddSnodeReveivedMessageInfoPrimaryKey"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.2
-    static let fetchedTables: [(TableRecord & FetchableRecord).Type] = [SnodeReceivedMessageInfo.self]
-    static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [SnodeReceivedMessageInfo.self]
+    static let fetchedTables: [(TableRecord & FetchableRecord).Type] = [
+        _001_InitialSetupMigration.LegacySnodeReceivedMessageInfo.self
+    ]
+    static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [
+        _001_InitialSetupMigration.LegacySnodeReceivedMessageInfo.self
+    ]
     static let droppedTables: [(TableRecord & FetchableRecord).Type] = []
     
     static func migrate(_ db: Database, using dependencies: Dependencies) throws {
+        typealias LegacyInfo = _001_InitialSetupMigration.LegacySnodeReceivedMessageInfo
+        
         // SQLite doesn't support adding a new primary key after creation so we need to create a new table with
         // the setup we want, copy data from the old table over, drop the old table and rename the new table
         struct TmpSnodeReceivedMessageInfo: Codable, TableRecord, FetchableRecord, PersistableRecord, ColumnExpressible {
@@ -45,26 +50,26 @@ enum _005_AddSnodeReveivedMessageInfoPrimaryKey: Migration {
         
         // Insert into the new table, drop the old table and rename the new table to be the old one
         let tmpInfo: TypedTableAlias<TmpSnodeReceivedMessageInfo> = TypedTableAlias()
-        let info: TypedTableAlias<SnodeReceivedMessageInfo> = TypedTableAlias()
+        let info: TypedTableAlias<LegacyInfo> = TypedTableAlias()
         try db.execute(literal: """
             INSERT INTO \(tmpInfo)
             SELECT \(info[.key]), \(info[.hash]), \(info[.expirationDateMs]), \(info[.wasDeletedOrInvalid])
             FROM \(info)
         """)
         
-        try db.drop(table: SnodeReceivedMessageInfo.self)
+        try db.drop(table: LegacyInfo.self)
         try db.rename(
             table: TmpSnodeReceivedMessageInfo.databaseTableName,
-            to: SnodeReceivedMessageInfo.databaseTableName
+            to: LegacyInfo.databaseTableName
         )
         
-        // Need to create the indexes separately from creating 'TmpGroupMember' to ensure they
-        // have the correct names
-        try db.createIndex(on: SnodeReceivedMessageInfo.self, columns: [.key])
-        try db.createIndex(on: SnodeReceivedMessageInfo.self, columns: [.hash])
-        try db.createIndex(on: SnodeReceivedMessageInfo.self, columns: [.expirationDateMs])
-        try db.createIndex(on: SnodeReceivedMessageInfo.self, columns: [.wasDeletedOrInvalid])
+        // Need to create the indexes separately from creating 'TmpSnodeReceivedMessageInfo' to
+        // ensure they have the correct names
+        try db.createIndex(on: LegacyInfo.self, columns: [.key])
+        try db.createIndex(on: LegacyInfo.self, columns: [.hash])
+        try db.createIndex(on: LegacyInfo.self, columns: [.expirationDateMs])
+        try db.createIndex(on: LegacyInfo.self, columns: [.wasDeletedOrInvalid])
         
-        Storage.update(progress: 1, for: self, in: target)
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

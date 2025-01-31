@@ -4,6 +4,7 @@ import UIKit
 import GRDB
 import SignalUtilitiesKit
 import SessionUIKit
+import SessionMessagingKit
 import SessionUtilitiesKit
 
 public class StyledSearchController: UISearchController {
@@ -74,6 +75,7 @@ extension ConversationSearchController: UISearchResultsUpdating {
         Log.verbose("searchBar.text: \( searchController.searchBar.text ?? "<blank>")")
 
         guard
+            let dependencies: Dependencies = self.delegate?.conversationSearchControllerDependencies(),
             let searchText: String = searchController.searchBar.text?.stripped,
             searchText.count >= ConversationSearchController.minimumSearchTextLength
         else {
@@ -85,7 +87,7 @@ extension ConversationSearchController: UISearchResultsUpdating {
         let threadId: String = self.threadId
         
         DispatchQueue.global(qos: .default).async { [weak self] in
-            let results: [Interaction.TimestampInfo]? = Storage.shared.read { db -> [Interaction.TimestampInfo] in
+            let results: [Interaction.TimestampInfo]? = dependencies[singleton: .storage].read { db -> [Interaction.TimestampInfo] in
                 self?.resultsBar.willStartSearching(readConnection: db)
                 
                 return try Interaction.idsForTermWithin(
@@ -134,8 +136,9 @@ protocol SearchResultsBarDelegate: AnyObject {
 }
 
 public final class SearchResultsBar: UIView {
-    private var readConnection: Atomic<Database?> = Atomic(nil)
-    private var results: Atomic<[Interaction.TimestampInfo]?> = Atomic(nil)
+    @ThreadSafe private var hasResults: Bool = false
+    @ThreadSafeObject private var results: [Interaction.TimestampInfo] = []
+    @ThreadSafeObject private var readConnection: Database? = nil
     
     var currentIndex: Int?
     weak var resultsBarDelegate: SearchResultsBarDelegate?
@@ -250,7 +253,7 @@ public final class SearchResultsBar: UIView {
     // MARK: - Actions
     
     @objc public func handleUpButtonTapped() {
-        guard let results: [Interaction.TimestampInfo] = results.wrappedValue else { return }
+        guard hasResults else { return }
         guard let currentIndex: Int = currentIndex else { return }
         guard currentIndex + 1 < results.count else { return }
 
@@ -261,7 +264,7 @@ public final class SearchResultsBar: UIView {
     }
 
     @objc public func handleDownButtonTapped() {
-        guard let results: [Interaction.TimestampInfo] = results.wrappedValue else { return }
+        guard hasResults else { return }
         guard let currentIndex: Int = currentIndex, currentIndex > 0 else { return }
 
         let newIndex = currentIndex - 1
@@ -274,7 +277,7 @@ public final class SearchResultsBar: UIView {
     
     /// This method will be called within a DB read block
     func willStartSearching(readConnection: Database) {
-        let hasNoExistingResults: Bool = (self.results.wrappedValue?.isEmpty != false)
+        let hasNoExistingResults: Bool = hasResults
         
         DispatchQueue.main.async { [weak self] in
             if hasNoExistingResults {
@@ -284,8 +287,8 @@ public final class SearchResultsBar: UIView {
             self?.startLoading()
         }
         
-        self.readConnection.wrappedValue?.interrupt()
-        self.readConnection.mutate { $0 = readConnection }
+        self.readConnection?.interrupt()
+        self._readConnection.set(to: readConnection)
     }
 
     func updateResults(results: [Interaction.TimestampInfo]?, visibleItemIds: [Int64]?) {
@@ -308,8 +311,9 @@ public final class SearchResultsBar: UIView {
             return 0
         }()
 
-        self.readConnection.mutate { $0 = nil }
-        self.results.mutate { $0 = results }
+        self._readConnection.set(to: nil)
+        self._results.performUpdate { _ in (results ?? []) }
+        self.hasResults = (results != nil)
 
         updateBarItems()
         
@@ -319,7 +323,7 @@ public final class SearchResultsBar: UIView {
     }
 
     func updateBarItems() {
-        guard let results: [Interaction.TimestampInfo] = results.wrappedValue else {
+        guard hasResults else {
             label.text = ""
             downButton.isEnabled = false
             upButton.isEnabled = false
@@ -360,6 +364,7 @@ public final class SearchResultsBar: UIView {
 // MARK: - ConversationSearchControllerDelegate
 
 public protocol ConversationSearchControllerDelegate: UISearchControllerDelegate {
+    func conversationSearchControllerDependencies() -> Dependencies
     func currentVisibleIds() -> [Int64]
     func conversationSearchController(_ conversationSearchController: ConversationSearchController, didUpdateSearchResults results: [Interaction.TimestampInfo]?, searchText: String?)
     func conversationSearchController(_ conversationSearchController: ConversationSearchController, didSelectInteractionInfo: Interaction.TimestampInfo)

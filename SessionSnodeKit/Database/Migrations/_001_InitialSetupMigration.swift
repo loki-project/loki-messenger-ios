@@ -9,11 +9,10 @@ import SessionUtilitiesKit
 enum _001_InitialSetupMigration: Migration {
     static let target: TargetMigrations.Identifier = .snodeKit
     static let identifier: String = "initialSetup"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [
-        LegacySnode.self, LegacySnodeSet.self, SnodeReceivedMessageInfo.self
+        LegacySnode.self, LegacySnodeSet.self, _001_InitialSetupMigration.LegacySnodeReceivedMessageInfo.self
     ]
     static let droppedTables: [(TableRecord & FetchableRecord).Type] = []
     
@@ -32,7 +31,7 @@ enum _001_InitialSetupMigration: Migration {
             t.deprecatedColumn(name: "port", .integer)
         }
         
-        try db.create(table: SnodeReceivedMessageInfo.self) { t in
+        try db.create(table: LegacySnodeReceivedMessageInfo.self) { t in
             t.deprecatedColumn(name: "id", .integer)
                 .notNull()
                 .primaryKey(autoincrement: true)
@@ -49,7 +48,7 @@ enum _001_InitialSetupMigration: Migration {
             t.uniqueKey([.key, .hash])
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }
 
@@ -87,5 +86,24 @@ internal extension _001_InitialSetupMigration {
         public let nodeIndex: Int
         public let ip: String
         public let lmqPort: UInt16
+    }
+}
+
+internal extension _001_InitialSetupMigration {
+    struct LegacySnodeReceivedMessageInfo: Codable, FetchableRecord, PersistableRecord, TableRecord, ColumnExpressible {
+        public static var databaseTableName: String { "snodeReceivedMessageInfo" }
+        
+        public typealias Columns = CodingKeys
+        public enum CodingKeys: String, CodingKey, ColumnExpression {
+            case key
+            case hash
+            case expirationDateMs
+            case wasDeletedOrInvalid
+        }
+        
+        public let key: String
+        public let hash: String
+        public let expirationDateMs: Int64
+        public var wasDeletedOrInvalid: Bool?
     }
 }

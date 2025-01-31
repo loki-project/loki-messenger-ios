@@ -7,7 +7,6 @@ import SessionUtilitiesKit
 enum _019_ScheduleAppUpdateCheckJob: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "ScheduleAppUpdateCheckJob"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static var requirements: [MigrationRequirement] = [.libSessionStateLoaded]
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
@@ -20,6 +19,6 @@ enum _019_ScheduleAppUpdateCheckJob: Migration {
             behaviour: .recurring
         ).migrationSafeInserted(db)
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

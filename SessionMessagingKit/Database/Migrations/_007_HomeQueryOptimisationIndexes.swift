@@ -10,7 +10,6 @@ import SessionUtilitiesKit
 enum _007_HomeQueryOptimisationIndexes: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "HomeQueryOptimisationIndexes"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.01
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = []
@@ -37,6 +36,6 @@ enum _007_HomeQueryOptimisationIndexes: Migration {
             ]
         )
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

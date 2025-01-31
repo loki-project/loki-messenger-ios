@@ -7,7 +7,6 @@ import SessionUtilitiesKit
 enum _020_AddMissingWhisperFlag: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "AddMissingWhisperFlag"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static var requirements: [MigrationRequirement] = []
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
@@ -23,6 +22,6 @@ enum _020_AddMissingWhisperFlag: Migration {
                 .defaults(to: false)
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

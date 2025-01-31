@@ -2,10 +2,15 @@
 
 import UIKit
 import SessionUIKit
+import SessionMessagingKit
 import SessionUtilitiesKit
 import SignalUtilitiesKit
 
 final class MentionSelectionView: UIView, UITableViewDataSource, UITableViewDelegate {
+    private let dependencies: Dependencies
+    var currentUserSessionId: String?
+    var currentUserBlinded15SessionId: String?
+    var currentUserBlinded25SessionId: String?
     var candidates: [MentionInfo] = [] {
         didSet {
             tableView.isScrollEnabled = (candidates.count > 4)
@@ -36,16 +41,17 @@ final class MentionSelectionView: UIView, UITableViewDataSource, UITableViewDele
 
     // MARK: - Initialization
     
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    init(using dependencies: Dependencies) {
+        self.dependencies = dependencies
+        
+        super.init(frame: .zero)
         
         setUpViewHierarchy()
     }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        
-        setUpViewHierarchy()
+    
+    @available(*, unavailable, message: "use other init(using:) instead.")
+    required public init(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
     private func setUpViewHierarchy() {
@@ -84,12 +90,16 @@ final class MentionSelectionView: UIView, UITableViewDataSource, UITableViewDele
         cell.update(
             with: candidates[indexPath.row].profile,
             threadVariant: candidates[indexPath.row].threadVariant,
-            isUserModeratorOrAdmin: OpenGroupManager.isUserModeratorOrAdmin(
-                candidates[indexPath.row].profile.id,
+            isUserModeratorOrAdmin: dependencies[singleton: .openGroupManager].isUserModeratorOrAdmin(
+                publicKey: candidates[indexPath.row].profile.id,
                 for: candidates[indexPath.row].openGroupRoomToken,
                 on: candidates[indexPath.row].openGroupServer
             ),
-            isLast: (indexPath.row == (candidates.count - 1))
+            currentUserSessionId: currentUserSessionId,
+            currentUserBlinded15SessionId: currentUserBlinded15SessionId,
+            currentUserBlinded25SessionId: currentUserBlinded25SessionId,
+            isLast: (indexPath.row == (candidates.count - 1)),
+            using: dependencies
         )
         cell.accessibilityIdentifier = "Contact"
         cell.accessibilityLabel = candidates[indexPath.row].profile.displayName(
@@ -183,15 +193,28 @@ private extension MentionSelectionView {
             with profile: Profile,
             threadVariant: SessionThread.Variant,
             isUserModeratorOrAdmin: Bool,
-            isLast: Bool
+            currentUserSessionId: String?,
+            currentUserBlinded15SessionId: String?,
+            currentUserBlinded25SessionId: String?,
+            isLast: Bool,
+            using dependencies: Dependencies
         ) {
-            displayNameLabel.text = profile.displayName(for: threadVariant)
+            let currentUserSessionIds: Set<String> = [
+                currentUserSessionId,
+                currentUserBlinded15SessionId,
+                currentUserBlinded25SessionId
+            ].compactMap { $0 }.asSet()
+            displayNameLabel.text = (currentUserSessionIds.contains(profile.id) ?
+                "you".localized() :
+                profile.displayName(for: threadVariant)
+            )
             profilePictureView.update(
                 publicKey: profile.id,
                 threadVariant: .contact,    // Always show the display picture in 'contact' mode
-                customImageData: nil,
+                displayPictureFilename: nil,
                 profile: profile,
-                profileIcon: (isUserModeratorOrAdmin ? .crown : .none)
+                profileIcon: (isUserModeratorOrAdmin ? .crown : .none),
+                using: dependencies
             )
             separator.isHidden = isLast
         }

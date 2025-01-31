@@ -13,8 +13,12 @@ public protocol NavigatableStateHolder {
 }
 
 public extension NavigatableStateHolder {
-    func showToast(text: String, backgroundColor: ThemeValue = .backgroundPrimary, insect: CGFloat = Values.largeSpacing) {
-        navigatableState._showToast.send((text, backgroundColor, insect))
+    func showToast(text: String, backgroundColor: ThemeValue = .backgroundPrimary, inset: CGFloat = Values.largeSpacing) {
+        navigatableState._showToast.send((NSAttributedString(string: text), backgroundColor, inset))
+    }
+    
+    func showToast(text: NSAttributedString, backgroundColor: ThemeValue = .backgroundPrimary, inset: CGFloat = Values.largeSpacing) {
+        navigatableState._showToast.send((text, backgroundColor, inset))
     }
     
     func dismissScreen(type: DismissType = .auto) {
@@ -29,13 +33,13 @@ public extension NavigatableStateHolder {
 // MARK: - NavigatableState
 
 public struct NavigatableState {
-    let showToast: AnyPublisher<(String, ThemeValue, CGFloat), Never>
+    let showToast: AnyPublisher<(NSAttributedString, ThemeValue, CGFloat), Never>
     let transitionToScreen: AnyPublisher<(UIViewController, TransitionType), Never>
     let dismissScreen: AnyPublisher<DismissType, Never>
     
     // MARK: - Internal Variables
     
-    fileprivate let _showToast: PassthroughSubject<(String, ThemeValue, CGFloat), Never> = PassthroughSubject()
+    fileprivate let _showToast: PassthroughSubject<(NSAttributedString, ThemeValue, CGFloat), Never> = PassthroughSubject()
     fileprivate let _transitionToScreen: PassthroughSubject<(UIViewController, TransitionType), Never> = PassthroughSubject()
     fileprivate let _dismissScreen: PassthroughSubject<DismissType, Never> = PassthroughSubject()
     
@@ -55,11 +59,13 @@ public struct NavigatableState {
     ) {
         self.showToast
             .receive(on: DispatchQueue.main)
-            .sink { [weak viewController] text, color, insect in
-                guard let view: UIView = viewController?.view else { return }
+            .sink { [weak viewController] text, color, inset in
+                guard let presenter: UIViewController = (viewController?.presentedViewController ?? viewController) else {
+                    return
+                }
                 
                 let toastController: ToastController = ToastController(text: text, background: color)
-                toastController.presentToastView(fromBottomOfView: view, inset: insect)
+                toastController.presentToastView(fromBottomOfView: presenter.view, inset: inset)
             }
             .store(in: &disposables)
         
@@ -107,5 +113,33 @@ public struct NavigatableState {
                 }
             }
             .store(in: &disposables)
+    }
+}
+
+public extension Publisher {
+    func showingBlockingLoading(in navigatableState: NavigatableState?) -> AnyPublisher<Output, Failure> {
+        guard let navigatableState: NavigatableState = navigatableState else {
+            return self.eraseToAnyPublisher()
+        }
+        
+        let modalActivityIndicator: ModalActivityIndicatorViewController = ModalActivityIndicatorViewController(onAppear: { _ in })
+        
+        return self
+            .handleEvents(
+                receiveSubscription: { _ in
+                    navigatableState._transitionToScreen.send((modalActivityIndicator, .present))
+                }
+            )
+            .asResult()
+            .flatMap { result -> AnyPublisher<Output, Failure> in
+                Deferred {
+                    Future<Output, Failure> { resolver in
+                        modalActivityIndicator.dismiss(completion: {
+                            resolver(result)
+                        })
+                    }
+                }.eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
     }
 }

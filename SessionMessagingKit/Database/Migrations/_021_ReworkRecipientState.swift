@@ -7,7 +7,6 @@ import SessionUtilitiesKit
 enum _021_ReworkRecipientState: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "ReworkRecipientState"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static var requirements: [MigrationRequirement] = []
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
@@ -125,7 +124,7 @@ enum _021_ReworkRecipientState: Migration {
         /// Finally we can drop the old recipient states table
         try db.drop(table: _001_InitialSetupMigration.LegacyRecipientState.self)
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }
 

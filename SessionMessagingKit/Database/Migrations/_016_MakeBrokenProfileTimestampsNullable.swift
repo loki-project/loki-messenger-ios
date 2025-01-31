@@ -9,7 +9,6 @@ import SessionUtilitiesKit
 enum _016_MakeBrokenProfileTimestampsNullable: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "MakeBrokenProfileTimestampsNullable"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static var requirements: [MigrationRequirement] = [.libSessionStateLoaded]
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
@@ -76,6 +75,6 @@ enum _016_MakeBrokenProfileTimestampsNullable: Migration {
         try db.drop(table: Profile.self)
         try db.rename(table: TmpProfile.databaseTableName, to: Profile.databaseTableName)
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

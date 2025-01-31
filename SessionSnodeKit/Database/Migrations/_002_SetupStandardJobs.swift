@@ -9,7 +9,6 @@ import SessionUtilitiesKit
 enum _002_SetupStandardJobs: Migration {
     static let target: TargetMigrations.Identifier = .snodeKit
     static let identifier: String = "SetupStandardJobs"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.1
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = []
@@ -32,6 +31,6 @@ enum _002_SetupStandardJobs: Migration {
             ).migrationSafeInserted(db)
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

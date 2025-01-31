@@ -23,7 +23,8 @@ public enum SNSnodeKit: MigratableTarget { // Just to make the external API nice
                 [], // Fix thread FTS
                 [
                     _005_AddSnodeReveivedMessageInfoPrimaryKey.self,
-                    _006_DropSnodeCache.self
+                    _006_DropSnodeCache.self,
+                    _007_SplitSnodeReceivedMessageInfo.self
                 ]
             ]
         )

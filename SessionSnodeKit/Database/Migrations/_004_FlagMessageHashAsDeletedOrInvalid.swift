@@ -10,18 +10,19 @@ import SessionUtilitiesKit
 enum _004_FlagMessageHashAsDeletedOrInvalid: Migration {
     static let target: TargetMigrations.Identifier = .snodeKit
     static let identifier: String = "FlagMessageHashAsDeletedOrInvalid"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.2
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
-    static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [SnodeReceivedMessageInfo.self]
+    static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [
+        _001_InitialSetupMigration.LegacySnodeReceivedMessageInfo.self
+    ]
     static let droppedTables: [(TableRecord & FetchableRecord).Type] = []
     
     static func migrate(_ db: Database, using dependencies: Dependencies) throws {
-        try db.alter(table: SnodeReceivedMessageInfo.self) { t in
+        try db.alter(table: _001_InitialSetupMigration.LegacySnodeReceivedMessageInfo.self) { t in
             t.add(.wasDeletedOrInvalid, .boolean)
                 .indexed()                                 // Faster querying
         }
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

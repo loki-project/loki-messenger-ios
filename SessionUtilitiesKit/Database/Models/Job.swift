@@ -1,4 +1,6 @@
 // Copyright © 2022 Rangeproof Pty Ltd. All rights reserved.
+//
+// stringlint:disable
 
 import Foundation
 import GRDB
@@ -128,9 +130,27 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
         /// This is a job that runs once whenever a message is marked as read because of syncing from user config and
         /// needs to get expiration from network
         case getExpiration
-        
+
         /// This is a job that runs at most once every 24 hours in order to check if there is a new update available on GitHub
         case checkForAppUpdates = 3011
+        
+        /// This is a job which downloads a display picture for a user, group or community (it's separate from the
+        /// `attachmentDownloadJob` as these files are likely to be much smaller so we don't want them to be
+        /// blocked by larger attachment downloads
+        case displayPictureDownload
+        
+        /// This is a job which sends an invitation to a member of a group asynchronously so the admin doesn't need to
+        /// wait during group creation
+        case groupInviteMember
+        
+        /// This is a job which sends a promotion to a member of a group asynchronously so the admin doesn't need to
+        /// wait during promotions
+        case groupPromoteMember
+        
+        /// This is a job which checks for any pending group member removals and performs the tasks required to remove
+        /// them if any exist - only one job can run at a time (if there is already a running job then any subsequent job will
+        /// be deferred until it completes)
+        case processPendingGroupMemberRemovals
     }
     
     public enum Behaviour: Int, Codable, DatabaseValueConvertible, CaseIterable {
@@ -151,6 +171,13 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
         /// This job will run once each whenever the app becomes active (launch and return from background) and
         /// may run again during the same session if `nextRunTimestamp` gets set
         case recurringOnActive
+        
+        /// This job will run once after a config sync (the config sync will filter to match a jobs to the same `threadId` as the config
+        /// but then the individual job will need it's own handling about whether it can run or not)
+        ///
+        /// **Note:** Jobs run with this behaviour will retry whenever a config sync occurs (or on launch since we automatically
+        /// enqueue a config sync for all configs on launch) and ignore the `maxFailureCount` so will retry indefinitely
+        case runOnceAfterConfigSyncIgnoringPermanentFailure
     }
     
     /// The `id` value is auto incremented by the database, if the `Job` hasn't been inserted into
@@ -210,6 +237,10 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
     /// in the `JobRunner`
     public let uniqueHashValue: Int?
     
+    /// Extra data which can be attached to a job that doesn't get persisted to the database (generally used for running
+    /// a job directly which may need some special behaviour)
+    public let transientData: Any?
+    
     /// The other jobs which this job is dependant on
     ///
     /// **Note:** When completing a job the dependencies **MUST** be cleared before the job is
@@ -228,6 +259,36 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
     
     // MARK: - Initialization
     
+    fileprivate init(
+        id: Int64?,
+        priority: Int64,
+        failureCount: UInt,
+        variant: Variant,
+        behaviour: Behaviour,
+        shouldBlock: Bool,
+        shouldSkipLaunchBecomeActive: Bool,
+        nextRunTimestamp: TimeInterval,
+        threadId: String?,
+        interactionId: Int64?,
+        details: Data?,
+        uniqueHashValue: Int?,
+        transientData: Any?
+    ) {
+        self.id = id
+        self.priority = priority
+        self.failureCount = failureCount
+        self.variant = variant
+        self.behaviour = behaviour
+        self.shouldBlock = shouldBlock
+        self.shouldSkipLaunchBecomeActive = shouldSkipLaunchBecomeActive
+        self.nextRunTimestamp = nextRunTimestamp
+        self.threadId = threadId
+        self.interactionId = interactionId
+        self.details = details
+        self.uniqueHashValue = uniqueHashValue
+        self.transientData = transientData
+    }
+    
     internal init(
         id: Int64?,
         priority: Int64 = 0,
@@ -240,7 +301,8 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
         nextRunTimestamp: TimeInterval,
         threadId: String?,
         interactionId: Int64?,
-        details: Data?
+        details: Data?,
+        transientData: Any?
     ) {
         Job.ensureValidBehaviour(
             behaviour: behaviour,
@@ -267,6 +329,7 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
             interactionId: interactionId,
             detailsData: details
         )
+        self.transientData = transientData
     }
     
     public init(
@@ -279,7 +342,8 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
         shouldSkipLaunchBecomeActive: Bool = false,
         nextRunTimestamp: TimeInterval = 0,
         threadId: String? = nil,
-        interactionId: Int64? = nil
+        interactionId: Int64? = nil,
+        transientData: Any? = nil
     ) {
         Job.ensureValidBehaviour(
             behaviour: behaviour,
@@ -305,6 +369,7 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
             interactionId: interactionId,
             detailsData: nil
         )
+        self.transientData = transientData
     }
     
     public init?<T: Encodable>(
@@ -318,7 +383,8 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
         nextRunTimestamp: TimeInterval = 0,
         threadId: String? = nil,
         interactionId: Int64? = nil,
-        details: T?
+        details: T?,
+        transientData: Any? = nil
     ) {
         precondition(T.self != Job.self, "[Job] Fatal error trying to create a Job with a Job as it's details")
         Job.ensureValidBehaviour(
@@ -352,6 +418,7 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
             interactionId: interactionId,
             detailsData: detailsData
         )
+        self.transientData = transientData
     }
     
     fileprivate static func ensureValidBehaviour(
@@ -392,10 +459,113 @@ public struct Job: Codable, Equatable, Hashable, Identifiable, FetchableRecord, 
         }
     }
     
+    private static func createUniqueHash(
+        shouldBeUnique: Bool,
+        variant: Variant,
+        threadId: String?,
+        interactionId: Int64?,
+        detailsData: Data?
+    ) -> Int? {
+        // Only generate a unique hash if the Job should actually be unique (we don't want to prevent
+        // all duplicate jobs, just the ones explicitly marked as unique)
+        guard shouldBeUnique else { return nil }
+        
+        var hasher: Hasher = Hasher()
+        variant.hash(into: &hasher)
+        threadId?.hash(into: &hasher)
+        interactionId?.hash(into: &hasher)
+        detailsData?.hash(into: &hasher)
+        
+        return hasher.finalize()
+    }
+    
     // MARK: - Custom Database Interaction
     
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         self.id = inserted.rowID
+    }
+}
+
+// MARK: - Codable
+
+public extension Job {
+    init(from decoder: Decoder) throws {
+        let container: KeyedDecodingContainer<CodingKeys> = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self = Job(
+            id: try container.decodeIfPresent(Int64.self, forKey: .id),
+            priority: try container.decode(Int64.self, forKey: .priority),
+            failureCount: try container.decode(UInt.self, forKey: .failureCount),
+            variant: try container.decode(Variant.self, forKey: .variant),
+            behaviour: try container.decode(Behaviour.self, forKey: .behaviour),
+            shouldBlock: try container.decode(Bool.self, forKey: .shouldBlock),
+            shouldSkipLaunchBecomeActive: try container.decode(Bool.self, forKey: .shouldSkipLaunchBecomeActive),
+            nextRunTimestamp: try container.decode(TimeInterval.self, forKey: .nextRunTimestamp),
+            threadId: try container.decodeIfPresent(String.self, forKey: .threadId),
+            interactionId: try container.decodeIfPresent(Int64.self, forKey: .interactionId),
+            details: try container.decodeIfPresent(Data.self, forKey: .details),
+            uniqueHashValue: try container.decodeIfPresent(Int.self, forKey: .uniqueHashValue),
+            transientData: nil
+        )
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container: KeyedEncodingContainer<CodingKeys> = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encode(priority, forKey: .priority)
+        try container.encode(failureCount, forKey: .failureCount)
+        try container.encode(variant, forKey: .variant)
+        try container.encode(behaviour, forKey: .behaviour)
+        try container.encode(shouldBlock, forKey: .shouldBlock)
+        try container.encode(shouldSkipLaunchBecomeActive, forKey: .shouldSkipLaunchBecomeActive)
+        try container.encode(nextRunTimestamp, forKey: .nextRunTimestamp)
+        try container.encodeIfPresent(threadId, forKey: .threadId)
+        try container.encodeIfPresent(interactionId, forKey: .interactionId)
+        try container.encodeIfPresent(details, forKey: .details)
+        try container.encodeIfPresent(uniqueHashValue, forKey: .uniqueHashValue)
+    }
+}
+
+// MARK: - Equatable
+
+public extension Job {
+    static func == (lhs: Job, rhs: Job) -> Bool {
+        return (
+            lhs.id == rhs.id &&
+            lhs.priority == rhs.priority &&
+            lhs.failureCount == rhs.failureCount &&
+            lhs.variant == rhs.variant &&
+            lhs.behaviour == rhs.behaviour &&
+            lhs.shouldBlock == rhs.shouldBlock &&
+            lhs.shouldSkipLaunchBecomeActive == rhs.shouldSkipLaunchBecomeActive &&
+            lhs.nextRunTimestamp == rhs.nextRunTimestamp &&
+            lhs.threadId == rhs.threadId &&
+            lhs.interactionId == rhs.interactionId &&
+            lhs.details == rhs.details &&
+            lhs.uniqueHashValue == rhs.uniqueHashValue
+            /// `transientData` ignored for equality check
+        )
+    }
+}
+
+// MARK: - Hashable
+
+public extension Job {
+    func hash(into hasher: inout Hasher) {
+        id?.hash(into: &hasher)
+        priority.hash(into: &hasher)
+        failureCount.hash(into: &hasher)
+        variant.hash(into: &hasher)
+        behaviour.hash(into: &hasher)
+        shouldBlock.hash(into: &hasher)
+        shouldSkipLaunchBecomeActive.hash(into: &hasher)
+        nextRunTimestamp.hash(into: &hasher)
+        threadId?.hash(into: &hasher)
+        interactionId?.hash(into: &hasher)
+        details?.hash(into: &hasher)
+        uniqueHashValue?.hash(into: &hasher)
+        /// `transientData` ignored for hashing
     }
 }
 
@@ -462,7 +632,8 @@ public extension Job {
             nextRunTimestamp: nextRunTimestamp,
             threadId: self.threadId,
             interactionId: self.interactionId,
-            details: self.details
+            details: self.details,
+            transientData: self.transientData
         )
     }
     
@@ -485,7 +656,8 @@ public extension Job {
             nextRunTimestamp: self.nextRunTimestamp,
             threadId: self.threadId,
             interactionId: self.interactionId,
-            details: detailsData
+            details: detailsData,
+            transientData: self.transientData
         )
     }
 }

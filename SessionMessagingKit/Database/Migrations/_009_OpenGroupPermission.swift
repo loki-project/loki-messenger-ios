@@ -7,7 +7,6 @@ import SessionUtilitiesKit
 enum _009_OpenGroupPermission: Migration {
     static let target: TargetMigrations.Identifier = .messagingKit
     static let identifier: String = "OpenGroupPermission"
-    static let needsConfigSync: Bool = false
     static let minExpectedRunDuration: TimeInterval = 0.01
     static let fetchedTables: [(TableRecord & FetchableRecord).Type] = []
     static let createdOrAlteredTables: [(TableRecord & FetchableRecord).Type] = [OpenGroup.self]
@@ -25,6 +24,6 @@ enum _009_OpenGroupPermission: Migration {
         _ = try OpenGroup
             .updateAll(db, OpenGroup.Columns.infoUpdates.set(to: 0))
         
-        Storage.update(progress: 1, for: self, in: target) // In case this is the last migration
+        Storage.update(progress: 1, for: self, in: target, using: dependencies)
     }
 }

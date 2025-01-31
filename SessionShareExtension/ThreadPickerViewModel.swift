@@ -32,16 +32,44 @@ public class ThreadPickerViewModel {
     /// fetch (after the ones in `ValueConcurrentObserver.asyncStart`/`ValueConcurrentObserver.syncStart`)
     /// just in case the database has changed between the two reads - unfortunately it doesn't look like there is a way to prevent this
     public lazy var observableViewData = ValueObservation
-        .trackingConstantRegion { db -> [SessionThreadViewModel] in
-            let userPublicKey: String = getUserHexEncodedPublicKey(db)
+        .trackingConstantRegion { [dependencies] db -> [SessionThreadViewModel] in
+            let userSessionId: SessionId = dependencies[cache: .general].sessionId
             
             return try SessionThreadViewModel
-                .shareQuery(userPublicKey: userPublicKey)
+                .shareQuery(userSessionId: userSessionId)
                 .fetchAll(db)
+                .map { threadViewModel in
+                    let wasKickedFromGroup: Bool = (
+                        threadViewModel.threadVariant == .group &&
+                        LibSession.wasKickedFromGroup(
+                            groupSessionId: SessionId(.group, hex: threadViewModel.threadId),
+                            using: dependencies
+                        )
+                    )
+                    let groupIsDestroyed: Bool = (
+                        threadViewModel.threadVariant == .group &&
+                        LibSession.groupIsDestroyed(
+                            groupSessionId: SessionId(.group, hex: threadViewModel.threadId),
+                            using: dependencies
+                        )
+                    )
+                    
+                    return threadViewModel.populatingPostQueryData(
+                        db,
+                        currentUserBlinded15SessionIdForThisThread: nil,
+                        currentUserBlinded25SessionIdForThisThread: nil,
+                        wasKickedFromGroup: wasKickedFromGroup,
+                        groupIsDestroyed: groupIsDestroyed,
+                        threadCanWrite: threadViewModel.determineInitialCanWriteFlag(using: dependencies),
+                        using: dependencies
+                    )
+                }
         }
-        .map { threads -> [SessionThreadViewModel] in threads.filter { $0.canWrite } }   // Exclude unwritable threads
+        .map { [dependencies] threads -> [SessionThreadViewModel] in
+            threads.filter { $0.threadCanWrite == true }   // Exclude unwritable threads
+        }
         .removeDuplicates()
-        .handleEvents(didFail: { SNLog("[ThreadPickerViewModel] Observation failed with error: \($0)") })
+        .handleEvents(didFail: { Log.error("Observation failed with error: \($0)") })
     
     // MARK: - Functions
     
